@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include "RobotVision.h"
-
+#include <opencv2/opencv.hpp>
 
 int main() {
 	std::vector<Target> targets = {
@@ -61,6 +61,21 @@ int main() {
 		<< robotPoint.Y << ", "
 		<< robotPoint.Z << ")"
 		<< std::endl;
+
+	cv::Mat image = cv::imread("data/test.jpg");
+	if (image.empty()) {
+		std::cout << "图片读取失败" << std::endl;
+		return 0;
+	}
+
+	std::cout << "图片读取成功" << std::endl;
+	std::cout << "宽度：" << image.cols << std::endl;
+	std::cout << "高度：" << image.rows << std::endl;
+	std::cout << "通道数：" << image.channels() << std::endl;
+	std::cout << "数据类型：" << image.type() << std::endl;
+
+	cv::imshow("robot Vision", image);
+	cv::waitKey(0);
 
 	return 0;
 }
