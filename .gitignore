@@ -1,0 +1,11 @@
+# Visual Studio
+.vs/
+
+# Build directory
+out/
+build/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
