@@ -1,5 +1,5 @@
 #include "RobotVision.h"
-
+#include <cmath>
 
 const Target* selectBestTarget(const std::vector<Target>& targets) {
 	/*找出置信度最高的目标
@@ -67,4 +67,120 @@ RobotPoint cameraToRobot(const CameraPoint& camerapoint, const double T[4][4]) {
 	}
 
 	return { result[0], result[1], result[2] };
+}
+
+point2D restorePoint(
+	const point2D& point,
+	double scale,
+	double padX,
+	double padY) 
+{
+	double x = (point.x - padX) / scale;
+	double y = (point.y - padY) / scale;
+
+	return{ x, y };
+}
+
+void rotationX(
+	double degree,
+	double R[3][3])
+{
+	double rad = degree * 3.141592653589793 / 180.0;
+
+	double c = std::cos(rad);
+	double s = std::sin(rad);
+
+	R[0][0] = 1;
+	R[0][1] = 0;
+	R[0][2] = 0;
+
+	R[1][0] = 0;
+	R[1][1] = c;
+	R[1][2] = -s;
+
+	R[2][0] = 0;
+	R[2][1] = s;
+	R[2][2] = c;
+}
+
+void rotationY(
+	double degree,
+	double R[3][3])
+{
+	double rad = degree * 3.141592653589793 / 180.0;
+
+	double c = std::cos(rad);
+	double s = std::sin(rad);
+
+	R[0][0] = c;
+	R[0][1] = 0;
+	R[0][2] = s;
+
+	R[1][0] = 0;
+	R[1][1] = 1;
+	R[1][2] = 0;
+
+	R[2][0] = -s;
+	R[2][1] = 0;
+	R[2][2] = c;
+}
+
+void rotationZ(
+	double degree,
+	double R[3][3]
+) {
+	double rad = degree * 3.141592653589793 / 180.0;
+
+	double c = std::cos(rad);
+	double s = std::sin(rad);
+
+	R[0][0] = c;
+	R[0][1] = -s;
+	R[0][2] = 0;
+
+	R[1][0] = s;
+	R[1][1] = c;
+	R[1][2] = 0;
+
+	R[2][0] = 0;
+	R[2][1] = 0;
+	R[2][2] = 1;
+}
+
+void buildTransform(
+	const double R[3][3],
+	double tx,
+	double ty,
+	double tz,
+	double T[4][4]
+)
+{
+	for (int row = 0; row < 3; row++) {
+		for (int col = 0; col < 3; col++)
+		{
+			T[row][col] = R[row][col];
+		}
+	}
+	T[0][3] = tx;
+	T[1][3] = ty;
+	T[2][3] = tz;
+
+	T[3][0] = 0;
+	T[3][1] = 0;
+	T[3][2] = 0;
+	T[3][1] = 1;
+}
+
+void multiplyMatrix3x3(
+	const double A[3][3],
+	const double B[3][3],
+	double C[3][3]) {
+	for (int row = 0; row < 3; row++) {
+		for (int col = 0; col < 3; col++) {
+			C[row][col] = 0.0;
+			for (int k = 0; k < 3; k++) {
+				C[row][col] += A[row][k] * B[k][col];
+			}
+		}
+	}
 }
