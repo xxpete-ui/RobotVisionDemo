@@ -1,5 +1,7 @@
 ﻿#include "RobotVision.h"
 #include <cmath>
+#include <cassert>
+#include <iostream>
 
 const Target* selectBestTarget(const std::vector<Target>& targets) {
 	if (targets.empty()) {
@@ -24,18 +26,27 @@ void markTargetGrabbed(std::vector<Target>& targets, int targetId) {
 	}
 }
 
-CameraPoint targetToCamera(const Target& target, double Z,
+bool targetToCamera(const Target& target, double Z,
 	double fx,
 	double fy,
 	double cx,
-	double cy) {
+	double cy,
+	CameraPoint& result) 
+
+{
 	double u = target.x;
 	double v = target.y;
+
+	if (Z <= 0 || fx <= 0 || fy <= 0) {
+		std::cout << "error something was happend" << std::endl;
+		return false;
+	}
 
 	double X = (u - cx) * Z / fx;
 	double Y = (v - cy) * Z / fy;
 
-	return{ X, Y, Z };
+	result = { X, Y, Z };
+	return true;
 }
 
 RobotPoint cameraToRobot(const CameraPoint& camerapoint, const double T[4][4]) {
@@ -182,8 +193,21 @@ bool inverseTransform(
 	const double T[4][4],
 	double T_inverse[4][4]
 ) {
-	//TODO 计算R的转置
+	//TODO 提取旋转矩阵R
+	
+	double R[3][3] = {
+		{T[0][0], T[0][1], T[0][2]},
+		{T[1][0], T[1][1], T[1][2]},
+		{T[2][0], T[2][1], T[2][2]}
+	};
+
+	if (!isValidRotationMatrix(R)) {
+		return false;
+	}
+
 	double t[3] = { T[0][3], T[1][3], T[2][3] };
+
+	 // 计算R的转置
 
 	double RT[3][3] = {
 		{T[0][0], T[1][0], T[2][0]},
@@ -311,4 +335,23 @@ bool isValidRotationMatrix(
 	}
 
 	return ok;
+}
+
+bool isSamePoint(
+	const CameraPoint& a,
+	const CameraPoint& b,
+	double EPS
+) {
+	//TODO
+	bool success = true;
+	if (fabs(a.X) - fabs(b.X) > EPS) {
+		success = false;
+	}
+	if (fabs(a.Y) - fabs(b.Y) > EPS) {
+		success = false;
+	}
+	if (fabs(a.Y) - fabs(b.Y) > EPS) {
+		success = false;
+	}
+	return success;
 }

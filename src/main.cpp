@@ -18,37 +18,6 @@ int main()
         {2, 0.95, 720, 400, false},
         {3, 0.82, 500, 300, false}
     };
-
-    const Target* bestTarget = selectBestTarget(targets);
-
-    if (bestTarget == nullptr)
-    {
-        std::cout << "当前没有发现目标，不执行" << std::endl;
-        return 0;
-    }
-
-    int bestID = bestTarget->id;
-
-    std::cout << "最佳Id为：" << bestID << std::endl;
-
-    markTargetGrabbed(targets, bestID);
-
-    for (const auto& target : targets)
-    {
-        std::cout << "========目前信息为==========\n"
-            << "\nId: " << target.id
-            << "\nconfidence: " << target.confidence
-            << "\nx: " << target.x
-            << "\ny: " << target.y
-            << "\ngrabbed: " << target.grabbed
-            << std::endl;
-    }
-
-
-    // ================================
-    // 2. 像素坐标 → 相机坐标
-    // ================================
-
     double depth = 2.0;
 
     double fx = 800.0;
@@ -56,49 +25,67 @@ int main()
     double cx = 640.0;
     double cy = 360.0;
 
-    CameraPoint cameraPoint = targetToCamera(
-        *bestTarget,
-        depth,
-        fx,
-        fy,
-        cx,
-        cy
-    );
+    for (const auto& target : targets)
+    {
+        CameraPoint cameraPoint;
 
-    std::cout << "相机坐标：("
-        << cameraPoint.X << ", "
-        << cameraPoint.Y << ", "
-        << cameraPoint.Z << ")"
-        << std::endl;
+        bool success = targetToCamera(
+            target,
+            depth,
+            fx,
+            fy,
+            cx,
+            cy,
+            cameraPoint
+        );
+
+        if (!success || target.id == 2)
+        {
+            std::cout << "目标 "
+                << target.id
+                << " 转换失败，跳过本次"
+                << std::endl;
+
+            continue;
+        }
+
+        std::cout << "目标 "
+            << target.id
+            << " 相机坐标：("
+            << cameraPoint.X << ", "
+            << cameraPoint.Y << ", "
+            << cameraPoint.Z << ")"
+            << std::endl;
 
 
+        // ================================
+        // Camera → Robot
+        // ================================
+
+        double T[4][4] = {
+            {1, 0, 0, 0.7},
+            {0, 1, 0, 2.1},
+            {0, 0, 1, 3.0},
+            {0, 0, 0, 1}
+        };
+
+        RobotPoint robotPoint = cameraToRobot(
+            cameraPoint,
+            T
+        );
+
+        std::cout << "目标 "
+            << target.id
+            << " 机器人坐标：("
+            << robotPoint.X << ", "
+            << robotPoint.Y << ", "
+            << robotPoint.Z << ")"
+            << std::endl;
+    }
+    
     // ================================
-    // 3. 相机坐标 → 机器人坐标
-    //    纯平移
-    // ================================
-
-    double T[4][4] = {
-        {1, 0, 0, 0.7},
-        {0, 1, 0, 2.1},
-        {0, 0, 1, 3.0},
-        {0, 0, 0, 1}
-    };
-
-    RobotPoint robotPoint = cameraToRobot(
-        cameraPoint,
-        T
-    );
-
-    std::cout << "机器人坐标：("
-        << robotPoint.X << ", "
-        << robotPoint.Y << ", "
-        << robotPoint.Z << ")"
-        << std::endl;
-
-
-    // ================================
-    // 4. OpenCV 图像读取
-    // ================================
+        // 4. OpenCV 图像读取
+        // ================================
 
     cv::Mat image = cv::imread("data/test.jpg");
 
@@ -177,20 +164,26 @@ int main()
         false
     };
 
-    CameraPoint cameraPoint_result = targetToCamera(
+    CameraPoint cameraPoint_result;
+    bool result_cameraPoint = targetToCamera(
         detectedTarget,
         depth,
         fx,
         fy,
         cx,
-        cy
+        cy,
+        cameraPoint_result
     );
+    if (!result_cameraPoint) {
+        std::cout << "非法参数， 跳过本次" << std::endl;
+    }
+    else {
+        std::cout << "=======相机坐标=========" << std::endl;
 
-    std::cout << "================" << std::endl;
-
-    std::cout << "x: " << cameraPoint_result.X << std::endl;
-    std::cout << "y: " << cameraPoint_result.Y << std::endl;
-    std::cout << "z: " << cameraPoint_result.Z << std::endl;
+        std::cout << "x: " << cameraPoint_result.X << std::endl;
+        std::cout << "y: " << cameraPoint_result.Y << std::endl;
+        std::cout << "z: " << cameraPoint_result.Z << std::endl;
+    }
 
 
     // ================================
@@ -281,36 +274,17 @@ int main()
 
         std::cout << std::endl;
     }
-    
-    double T_3[4][4] =
+
+    bool result_test = testTransform();
+
+    if (result_test)
     {
-        {0, -1, 0, 1.0},
-        {1,  0, 0, 0.5},
-        {0,  0, 1, 0.2},
-        {0,  0, 0, 1.0}
-    };
-    double T_inverse[4][4];
-
-    inverseTransform(T_3, T_inverse);
-    cameraPoint = {
-    0.2,
-    0.1,
-    2.0
-    };
-    robotPoint = cameraToRobot(cameraPoint, T_3);
-
-    std::cout << "Robot point: "
-        << robotPoint.X << ", "
-        << robotPoint.Y << ", "
-        << robotPoint.Z << std::endl;
-
-    CameraPoint cameraPointBack =
-        robotToCamera(robotPoint, T_inverse);
-
-    std::cout << "Camera point back: "
-        << cameraPointBack.X << ", "
-        << cameraPointBack.Y << ", "
-        << cameraPointBack.Z << std::endl;
+        std::cout << "Transform test: PASS" << std::endl;
+    }
+    else
+    {
+        std::cout << "Transform test: FAIL" << std::endl;
+    }
 
     return 0;
 }

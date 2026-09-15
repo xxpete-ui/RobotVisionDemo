@@ -26,6 +26,12 @@ struct point2D {
 	double y;
 };
 
+struct ValidTarget {
+	Target target;
+	CameraPoint cameraPoint;
+	RobotPoint robotPoint;
+};
+
 void rotationX(
 	double degree,
 	double R[3][3]
@@ -61,13 +67,14 @@ void markTargetGrabbed(
 	int targetId
 );
 
-CameraPoint targetToCamera(
+bool targetToCamera(
 	const Target& target,
 	double Z,
 	double fx,
 	double fy,
 	double cx,
-	double cy
+	double cy,
+	CameraPoint& result
 );
 
 RobotPoint cameraToRobot(
@@ -94,6 +101,14 @@ CameraPoint robotToCamera(
 	const RobotPoint& robotPoint,
 	const double T_inverse[4][4]);
 
-bool isValidRotationMatris(
-	const double R[3][3];
-)
+bool isValidRotationMatrix(
+	const double R[3][3]
+);
+
+bool isSamePoint(
+	const CameraPoint& a,
+	const CameraPoint& b,
+	double EPS
+);
+
+bool testTransform();
