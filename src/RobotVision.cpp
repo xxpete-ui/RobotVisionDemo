@@ -300,6 +300,24 @@ const ValidTarget* selectBestValidTarget(
     return best;
 }
 
+const char* RobotVision::statusToString(VisionStatus status) {
+    switch (status) {
+        case VisionStatus::OK:
+            return "OK";
+
+        case VisionStatus::InvalidCameraConfig:
+            return "InvalidCameraConfig";
+
+        case VisionStatus::InvalidTransform:
+            return "InvalidTransform";
+
+        case VisionStatus::NoValidTarget:
+            return "NoValidTarget";
+
+        default:
+            return "Unknown";
+    }
+}
 
 // ================================
 // 图像/坐标处理
@@ -472,12 +490,14 @@ bool RobotVision::runVisionPipeline(
 ) {
     std::vector<ValidTarget> processPipeline_result = RobotVision::processTargets(targets);
     if (processPipeline_result.empty()) {
+        status = VisionStatus::NoValidTarget;
         std::cout << "没有有效目标，跳过" << std::endl;
         return false;
     }
     
     const ValidTarget* bestValidTarget = selectBestValidTarget(processPipeline_result);
     if (bestValidTarget == nullptr) {
+        status = VisionStatus::NoValidTarget;
         std::cout << "没有有效目标，跳过" << std::endl;
         return false;
     }
@@ -486,7 +506,7 @@ bool RobotVision::runVisionPipeline(
     markValidTargetGrabbed(processPipeline_result, bestID);
 
     bestTarget = *bestValidTarget;
-
+    status = VisionStatus::OK;
     return true;
 }
 
@@ -497,13 +517,23 @@ RobotVision::RobotVision(
      fx(cameraConfig.fx),
      fy(cameraConfig.fy),
      cx(cameraConfig.cx),
-     cy(cameraConfig.cy)
+     cy(cameraConfig.cy),
+     status(VisionStatus::OK)
+    
 
-{  
+{
     for (int row = 0; row < 4; row++) {
         for (int col = 0; col < 4; col++) {
             this->T[row][col] = T[row][col];
         }
+    }
+
+    if (!checkCameraConfig()) {
+        status = VisionStatus::InvalidCameraConfig;
+    }
+
+    else if (!checkTransform()) {
+        status = VisionStatus::InvalidTransform;
     }
 }
 
@@ -511,5 +541,41 @@ bool RobotVision::run(
     const std::vector<Target>& targets,
     ValidTarget& bestTarget)
 {
+    
+    if (status != VisionStatus::OK) {
+        std::cout << "RobotVision 状态异常: " <<
+            statusToString(status)<<
+            std::endl;
+        return false;
+    }
     return RobotVision::runVisionPipeline(targets, bestTarget);
+}
+
+bool RobotVision::checkCameraConfig() {
+    return this->Z > 0 && this->fx > 0 && this->fy > 0;
+}
+
+bool RobotVision::checkTransform() {
+
+    double EPS = 1e-6;
+    if (fabs(T[3][0]) < EPS &&
+        fabs(T[3][1]) < EPS &&
+        fabs(T[3][2]) < EPS &&
+        fabs(T[3][3] - 1.0)  < EPS) {
+        double T_test[3][3];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                T_test[row][col] = T[row][col];
+            }
+        }
+        return RobotVision::isValidRotationMatrix(T_test); 
+    }
+    else {
+        return false;
+    }
+}
+
+VisionStatus RobotVision::getStatus() const
+{
+    return status;
 }

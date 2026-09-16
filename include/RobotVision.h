@@ -44,6 +44,14 @@ struct point2D
     double y;
 };
 
+enum class VisionStatus
+{
+    OK,
+    InvalidCameraConfig,
+    InvalidTransform,
+    NoValidTarget
+};
+
 
 const Target* selectBestTarget(
     const std::vector<Target>& targets);
@@ -133,6 +141,10 @@ public:
     static bool isValidRotationMatrix(
         const double R[3][3]);
 
+    VisionStatus getStatus() const;
+
+    const char* statusToString(VisionStatus status);
+
 private:
     double Z;
     double fx;
@@ -141,10 +153,14 @@ private:
     double cy;
     double T[4][4];
 
+    VisionStatus status;
+    bool checkCameraConfig();
+    
+    bool checkTransform();
+
     bool runVisionPipeline(
         const std::vector<Target>& targets,
         ValidTarget& bestTarget);
 
-    std::vector<ValidTarget> processTargets(
-        const std::vector<Target>& targets);
+    std::vector<ValidTarget> processTargets(const std::vector<Target>& targets);
 };

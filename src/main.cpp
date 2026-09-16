@@ -35,7 +35,8 @@ int main()
     RobotVision vision(cameraConfig, T);
     ValidTarget bestTarget{};
     
-    if (vision.run(targets, bestTarget)){
+    if (vision.run(targets, bestTarget))
+    {
         std::cout << "最佳目标 ID："
             << bestTarget.target.id
             << std::endl;
@@ -49,6 +50,20 @@ int main()
             << bestTarget.robotPoint.Y << ", "
             << bestTarget.robotPoint.Z
             << std::endl;
+    }
+    else {
+        switch (vision.getStatus()) {
+             case VisionStatus::InvalidCameraConfig:
+                  std::cout << "相机参数错误" << std::endl;
+                  break;
+             case VisionStatus::InvalidTransform:
+                  std::cout << "变换矩阵错误" << std::endl;
+                  break;
+             case VisionStatus::NoValidTarget:
+                  std::cout << "当前没有有效目标，继续下一帧" << std::endl;
+                  break;
+        }
+        
     }
 
     // ================================
