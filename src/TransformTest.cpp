@@ -1,5 +1,5 @@
 ﻿#include "RobotVision.h"
-
+#include "TransformTest.h"
 #include <iostream>
 
 
@@ -26,7 +26,7 @@ bool testTransform()
     // ================================
 
     bool success =
-        inverseTransform(
+        RobotVision::inverseTransform(
             T_valid,
             T_inverse);
 
@@ -129,9 +129,7 @@ bool testTransform()
 
     double invalidInverse[4][4];
 
-
-    bool invalidResult =
-        inverseTransform(
+    bool invalidResult = RobotVision::inverseTransform(
             T_invalid,
             invalidInverse);
 
@@ -139,19 +137,12 @@ bool testTransform()
     // 无效 Transform 应该求逆失败
     if (invalidResult)
     {
-        std::cout
-            << "Invalid transform test: FAIL"
-            << std::endl;
-
+        std::cout << "Invalid transform test: FAIL" << std::endl;
         return false;
     }
 
 
-    std::cout
-        << "Invalid transform test: PASS"
-        << std::endl;
-
-
+    std::cout << "Invalid transform test: PASS" << std::endl;
     // ================================
     // 8. 所有测试通过
     // ================================

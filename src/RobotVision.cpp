@@ -5,203 +5,9 @@
 
 
 // ================================
-// 选择最高置信度目标
+// 数学/坐标变换工具
 // ================================
-const Target* selectBestTarget(
-    const std::vector<Target>& targets)
-{
-    if (targets.empty())
-    {
-        return nullptr;
-    }
-
-    const Target* best =
-        &targets[0];
-
-    for (const auto& target : targets)
-    {
-        if (target.confidence >
-            best->confidence)
-        {
-            best = &target;
-        }
-    }
-
-    return best;
-}
-
-
-// ================================
-// 标记目标已经抓取
-// ================================
-void markValidTargetGrabbed(
-    std::vector<ValidTarget>& targets,
-    int targetId)
-{
-    for (auto& target : targets)
-    {
-        if (target.target.id == targetId)
-        {
-            target.target.grabbed = true;
-            return;
-        }
-    }
-}
-
-
-// ================================
-// 像素坐标 → 相机坐标
-// ================================
-bool targetToCamera(
-    const Target& target,
-    double Z,
-    double fx,
-    double fy,
-    double cx,
-    double cy,
-    CameraPoint& result)
-{
-    double u = target.x;
-    double v = target.y;
-
-    if (Z <= 0 ||
-        fx <= 0 ||
-        fy <= 0)
-    {
-        std::cout
-            << "相机参数错误"
-            << std::endl;
-
-        return false;
-    }
-
-    double X =
-        (u - cx) * Z / fx;
-
-    double Y =
-        (v - cy) * Z / fy;
-
-    result =
-    {
-        X,
-        Y,
-        Z
-    };
-
-    return true;
-}
-
-
-// ================================
-// 相机坐标 → 机器人坐标
-// ================================
-RobotPoint cameraToRobot(
-    const CameraPoint& cameraPoint,
-    const double T[4][4])
-{
-    double result[3] =
-    {
-        0.0,
-        0.0,
-        0.0
-    };
-
-    double point[3] =
-    {
-        cameraPoint.X,
-        cameraPoint.Y,
-        cameraPoint.Z
-    };
-
-    for (int row = 0; row < 3; row++)
-    {
-        for (int col = 0; col < 3; col++)
-        {
-            result[row] +=
-                T[row][col] *
-                point[col];
-        }
-
-        result[row] += T[row][3];
-    }
-
-    return
-    {
-        result[0],
-        result[1],
-        result[2]
-    };
-}
-
-
-// ================================
-// 机器人坐标 → 相机坐标
-// ================================
-CameraPoint robotToCamera(
-    const RobotPoint& robotPoint,
-    const double T_inverse[4][4])
-{
-    double result[3] =
-    {
-        0.0,
-        0.0,
-        0.0
-    };
-
-    double point[3] =
-    {
-        robotPoint.X,
-        robotPoint.Y,
-        robotPoint.Z
-    };
-
-    for (int row = 0; row < 3; row++)
-    {
-        for (int col = 0; col < 3; col++)
-        {
-            result[row] +=
-                T_inverse[row][col] *
-                point[col];
-        }
-
-        result[row] +=
-            T_inverse[row][3];
-    }
-
-    return
-    {
-        result[0],
-        result[1],
-        result[2]
-    };
-}
-
-
-// ================================
-// Letterbox 坐标还原
-// ================================
-point2D restorePoint(
-    const point2D& point,
-    double scale,
-    double padX,
-    double padY)
-{
-    point2D result;
-
-    result.x =
-        (point.x - padX) / scale;
-
-    result.y =
-        (point.y - padY) / scale;
-
-    return result;
-}
-
-
-// ================================
-// rotation X
-// ================================
-void rotationX(
+void RobotVision::rotationX(
     double degree,
     double R[3][3])
 {
@@ -225,10 +31,7 @@ void rotationX(
 }
 
 
-// ================================
-// rotation Y
-// ================================
-void rotationY(
+void RobotVision::rotationY(
     double degree,
     double R[3][3])
 {
@@ -252,10 +55,7 @@ void rotationY(
 }
 
 
-// ================================
-// rotation Z
-// ================================
-void rotationZ(
+void RobotVision::rotationZ(
     double degree,
     double R[3][3])
 {
@@ -278,11 +78,28 @@ void rotationZ(
     R[2][2] = 1;
 }
 
+void RobotVision::multiplyMatrix3x3(
+    const double A[3][3],
+    const double B[3][3],
+    double C[3][3])
+{
+    for (int row = 0; row < 3; row++)
+    {
+        for (int col = 0; col < 3; col++)
+        {
+            C[row][col] = 0;
 
-// ================================
-// 构造 Transform
-// ================================
-void buildTransform(
+            for (int k = 0; k < 3; k++)
+            {
+                C[row][col] +=
+                    A[row][k] *
+                    B[k][col];
+            }
+        }
+    }
+}
+
+void RobotVision::buildTransform(
     const double R[3][3],
     double tx,
     double ty,
@@ -308,36 +125,7 @@ void buildTransform(
     T[3][3] = 1;
 }
 
-
-// ================================
-// 3×3 矩阵乘法
-// ================================
-void multiplyMatrix3x3(
-    const double A[3][3],
-    const double B[3][3],
-    double C[3][3])
-{
-    for (int row = 0; row < 3; row++)
-    {
-        for (int col = 0; col < 3; col++)
-        {
-            C[row][col] = 0;
-
-            for (int k = 0; k < 3; k++)
-            {
-                C[row][col] +=
-                    A[row][k] *
-                    B[k][col];
-            }
-        }
-    }
-}
-
-
-// ================================
-// Transform 求逆
-// ================================
-bool inverseTransform(
+bool RobotVision::inverseTransform(
     const double T[4][4],
     double T_inverse[4][4])
 {
@@ -389,10 +177,7 @@ bool inverseTransform(
 }
 
 
-// ================================
-// 检查旋转矩阵
-// ================================
-bool isValidRotationMatrix(
+bool RobotVision::isValidRotationMatrix(
     const double R[3][3])
 {
     const double EPS = 1e-6;
@@ -444,9 +229,6 @@ bool isValidRotationMatrix(
 }
 
 
-// ================================
-// 判断两个 CameraPoint 是否相同
-// ================================
 bool isSamePoint(
     const CameraPoint& a,
     const CameraPoint& b,
@@ -457,6 +239,50 @@ bool isSamePoint(
         std::abs(a.Y - b.Y) < EPS &&
         std::abs(a.Z - b.Z) < EPS;
 }
+
+
+// ================================
+// 目标处理
+// ================================
+
+const Target* selectBestTarget(
+    const std::vector<Target>& targets)
+{
+    if (targets.empty())
+    {
+        return nullptr;
+    }
+
+    const Target* best =
+        &targets[0];
+
+    for (const auto& target : targets)
+    {
+        if (target.confidence >
+            best->confidence)
+        {
+            best = &target;
+        }
+    }
+
+    return best;
+}
+
+
+void markValidTargetGrabbed(
+    std::vector<ValidTarget>& targets,
+    int targetId)
+{
+    for (auto& target : targets)
+    {
+        if (target.target.id == targetId)
+        {
+            target.target.grabbed = true;
+            return;
+        }
+    }
+}
+
 
 const ValidTarget* selectBestValidTarget(
     const std::vector<ValidTarget>& targets
@@ -474,21 +300,157 @@ const ValidTarget* selectBestValidTarget(
     return best;
 }
 
-std::vector<ValidTarget> processTargets(
-    const std::vector<Target>& targets,
+
+// ================================
+// 图像/坐标处理
+// ================================
+bool targetToCamera(
+    const Target& target,
     double Z,
     double fx,
     double fy,
     double cx,
     double cy,
-    const double T[4][4]
-) {
+    CameraPoint& result)
+{
+    double u = target.x;
+    double v = target.y;
+
+    if (Z <= 0 ||
+        fx <= 0 ||
+        fy <= 0)
+    {
+        std::cout
+            << "相机参数错误"
+            << std::endl;
+
+        return false;
+    }
+
+    double X =
+        (u - cx) * Z / fx;
+
+    double Y =
+        (v - cy) * Z / fy;
+
+    result =
+    {
+        X,
+        Y,
+        Z
+    };
+
+    return true;
+}
+
+
+CameraPoint robotToCamera(
+    const RobotPoint& robotPoint,
+    const double T_inverse[4][4])
+{
+    double result[3] =
+    {
+        0.0,
+        0.0,
+        0.0
+    };
+
+    double point[3] =
+    {
+        robotPoint.X,
+        robotPoint.Y,
+        robotPoint.Z
+    };
+
+    for (int row = 0; row < 3; row++)
+    {
+        for (int col = 0; col < 3; col++)
+        {
+            result[row] +=
+                T_inverse[row][col] *
+                point[col];
+        }
+
+        result[row] +=
+            T_inverse[row][3];
+    }
+
+    return
+    {
+        result[0],
+        result[1],
+        result[2]
+    };
+}
+
+
+point2D restorePoint(
+    const point2D& point,
+    double scale,
+    double padX,
+    double padY)
+{
+    point2D result;
+
+    result.x =
+        (point.x - padX) / scale;
+
+    result.y =
+        (point.y - padY) / scale;
+
+    return result;
+}
+
+RobotPoint cameraToRobot(
+    const CameraPoint& cameraPoint,
+    const double T[4][4])
+{
+    double result[3] =
+    {
+        0.0,
+        0.0,
+        0.0
+    };
+
+    double point[3] =
+    {
+        cameraPoint.X,
+        cameraPoint.Y,
+        cameraPoint.Z
+    };
+
+    for (int row = 0; row < 3; row++)
+    {
+        for (int col = 0; col < 3; col++)
+        {
+            result[row] +=
+                T[row][col] *
+                point[col];
+        }
+
+        result[row] += T[row][3];
+    }
+
+    return
+    {
+        result[0],
+        result[1],
+        result[2]
+    };
+}
+
+
+// ================================
+// RobotVision 类
+// ================================
+std::vector<ValidTarget> RobotVision::processTargets(
+    const std::vector<Target>& targets) {
     std::vector<ValidTarget> validTargets;
     // 相机坐标{X, Y, Z}
     
     for (const auto& target : targets) {
         CameraPoint cameraPoint;
-        bool cameraPoint_result = targetToCamera(target, Z, fx, fy, cx, cy, cameraPoint);
+        bool cameraPoint_result = targetToCamera(target, this->Z, this->fx, this->fy, this->cx, this->cy, cameraPoint);
         if (!cameraPoint_result) {
             std::cout << "无效目标，跳过" << std::endl;
             continue;
@@ -504,17 +466,11 @@ std::vector<ValidTarget> processTargets(
 
 }
 
-bool runVisionPipeline(
+bool RobotVision::runVisionPipeline(
     const std::vector<Target>& targets,
-    double Z,
-    double fx,
-    double fy,
-    double cx,
-    double cy,
-    const double T[4][4],
     ValidTarget& bestTarget
 ) {
-    std::vector<ValidTarget> processPipeline_result = processTargets(targets, Z, fx, fy, cx, cy, T);
+    std::vector<ValidTarget> processPipeline_result = RobotVision::processTargets(targets);
     if (processPipeline_result.empty()) {
         std::cout << "没有有效目标，跳过" << std::endl;
         return false;
@@ -532,4 +488,28 @@ bool runVisionPipeline(
     bestTarget = *bestValidTarget;
 
     return true;
+}
+
+RobotVision::RobotVision(
+    const CameraConfig& cameraConfig,
+    const double T[4][4])
+    : Z(cameraConfig.Z),
+     fx(cameraConfig.fx),
+     fy(cameraConfig.fy),
+     cx(cameraConfig.cx),
+     cy(cameraConfig.cy)
+
+{  
+    for (int row = 0; row < 4; row++) {
+        for (int col = 0; col < 4; col++) {
+            this->T[row][col] = T[row][col];
+        }
+    }
+}
+
+bool RobotVision::run(
+    const std::vector<Target>& targets,
+    ValidTarget& bestTarget)
+{
+    return RobotVision::runVisionPipeline(targets, bestTarget);
 }

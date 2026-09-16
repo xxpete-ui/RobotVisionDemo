@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <opencv2/opencv.hpp>
 #include "RobotVision.h"
+#include "TransformTest.h"
 
 
 int main()
@@ -29,10 +30,12 @@ int main()
         {0, 0, 1, 3.0},
         {0, 0, 0, 1.0}
     };
-
+    CameraConfig cameraConfig = { Z, fx, fy, cx, cy };
+   
+    RobotVision vision(cameraConfig, T);
     ValidTarget bestTarget{};
-
-    if (runVisionPipeline(targets, Z, fx, fy, cx, cy, T, bestTarget)) {
+    
+    if (vision.run(targets, bestTarget)){
         std::cout << "最佳目标 ID："
             << bestTarget.target.id
             << std::endl;
@@ -230,12 +233,12 @@ int main()
     double R[3][3];
 
 
-    rotationZ(
+    RobotVision::rotationZ(
         90.0,
         R);
 
 
-    buildTransform(
+    RobotVision::buildTransform(
         R,
         0.7,
         2.1,
@@ -245,34 +248,13 @@ int main()
 
     if (cameraSuccess)
     {
-        RobotPoint robotResult =
-            cameraToRobot(
-                cameraPointResult,
-                T_1);
+        RobotPoint robotResult = cameraToRobot(cameraPointResult, T_1);
 
-
-        std::cout
-            << "================"
-            << std::endl;
-
-        std::cout
-            << "Rz + 平移后的机器人坐标："
-            << std::endl;
-
-        std::cout
-            << "x: "
-            << robotResult.X
-            << std::endl;
-
-        std::cout
-            << "y: "
-            << robotResult.Y
-            << std::endl;
-
-        std::cout
-            << "z: "
-            << robotResult.Z
-            << std::endl;
+        std::cout << "================" << std::endl;
+        std::cout << "Rz + 平移后的机器人坐标：" << std::endl;
+        std::cout << "x: " << robotResult.X << std::endl;
+        std::cout << "y: " << robotResult.Y << std::endl;
+        std::cout << "z: " << robotResult.Z << std::endl;
     }
 
 
@@ -284,15 +266,15 @@ int main()
     double Ry[3][3];
     double Rz[3][3];
 
-    rotationX(
+    RobotVision::rotationX(
         30.0,
         Rx);
 
-    rotationY(
+    RobotVision::rotationY(
         20.0,
         Ry);
 
-    rotationZ(
+    RobotVision::rotationZ(
         90.0,
         Rz);
 
@@ -303,12 +285,12 @@ int main()
 
     // Rz × Ry × Rx
 
-    multiplyMatrix3x3(
+    RobotVision::multiplyMatrix3x3(
         Ry,
         Rx,
         temp);
 
-    multiplyMatrix3x3(
+    RobotVision::multiplyMatrix3x3(
         Rz,
         temp,
         R_1);
@@ -345,12 +327,12 @@ int main()
     double R_2[3][3];
 
 
-    multiplyMatrix3x3(
+    RobotVision::multiplyMatrix3x3(
         Ry,
         Rz,
         temp2);
 
-    multiplyMatrix3x3(
+    RobotVision::multiplyMatrix3x3(
         Rx,
         temp2,
         R_2);
@@ -395,8 +377,7 @@ int main()
     double T_inverse[4][4];
 
 
-    bool inverseSuccess =
-        inverseTransform(
+    bool inverseSuccess = RobotVision::inverseTransform(
             T_3,
             T_inverse);
 
