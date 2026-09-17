@@ -159,98 +159,38 @@ void printRotationComposition() {
     double Ry[3][3];
     double Rz[3][3];
 
-    RobotVision::rotationX(
-        30.0,
-        Rx);
-
-    RobotVision::rotationY(
-        20.0,
-        Ry);
-
-    RobotVision::rotationZ(
-        90.0,
-        Rz);
-
-
+    RobotVision::rotationX(30.0,Rx);
+    RobotVision::rotationY(20.0,Ry);
+    RobotVision::rotationZ(90.0,Rz);
     double temp[3][3];
     double R_1[3][3];
 
 
     // Rz × Ry × Rx
-
-    RobotVision::multiplyMatrix3x3(
-        Ry,
-        Rx,
-        temp);
-
-    RobotVision::multiplyMatrix3x3(
-        Rz,
-        temp,
-        R_1);
-
-
-    std::cout
-        << "Rz × Ry × Rx："
-        << std::endl;
-
-
-    for (int row = 0;
-        row < 3;
-        row++)
+    RobotVision::multiplyMatrix3x3(Ry,Rx,temp);
+    RobotVision::multiplyMatrix3x3(Rz,temp,R_1);
+    std::cout<< "Rz × Ry × Rx："<< std::endl;
+    for (int row = 0;row < 3;row++)
     {
-        for (int col = 0;
-            col < 3;
-            col++)
+        for (int col = 0;col < 3;col++)
         {
-            std::cout
-                << R_1[row][col]
-                << "\t";
+            std::cout<< R_1[row][col]<< "\t";
         }
-
-        std::cout
-            << std::endl;
+        std::cout<< std::endl;
     }
-
-
-    // ================================
-    // 13. Rx × Ry × Rz
-    // ================================
-
     double temp2[3][3];
     double R_2[3][3];
-
-
-    RobotVision::multiplyMatrix3x3(
-        Ry,
-        Rz,
-        temp2);
-
-    RobotVision::multiplyMatrix3x3(
-        Rx,
-        temp2,
-        R_2);
-
-
-    std::cout
-        << "Rx × Ry × Rz："
-        << std::endl;
-
-
-    for (int row = 0;
-        row < 3;
-        row++)
+    RobotVision::multiplyMatrix3x3(Ry,Rz,temp2);
+    RobotVision::multiplyMatrix3x3(Rx,temp2,R_2);
+    std::cout<< "Rx × Ry × Rz："<< std::endl;
+    for (int row = 0;row < 3;row++)
     {
-        for (int col = 0;
-            col < 3;
-            col++)
+        for (int col = 0;col < 3;col++)
         {
-            std::cout
-                << R_2[row][col]
-                << "\t";
+            std::cout<< R_2[row][col]<< "\t";
         }
 
-        std::cout
-            << std::endl;
+        std::cout<< std::endl;
     }
     return;
 }
@@ -272,4 +212,44 @@ void printRotateRobotPoint(const CameraPoint& cameraPoint) {
     std::cout << "y: " << robotResult.Y << std::endl;
     std::cout << "z: " << robotResult.Z << std::endl;
     return;
+}
+
+bool demoLetterboxToCamera(const CameraConfig& config, CameraPoint& result) {
+    double x = 450;
+    double y = 200;
+    double scale = 0.5;
+    double padX = 0;
+    double padY = 80;
+    point2D result_restore = restorePoint({ x, y }, scale, padX, padY);
+
+
+    std::cout << "================" << std::endl;
+    std::cout << "还原后的 x：" << result_restore.x << std::endl;
+    std::cout << "还原后的 y：" << result_restore.y << std::endl;
+
+
+    Target detectedTarget =
+    {
+        100,
+        0.95,
+        result_restore.x,
+        result_restore.y,
+        false
+    };
+
+
+    CameraPoint cameraPointResult;
+    bool cameraSuccess = targetToCamera(detectedTarget, config.Z, config.fx, config.fy, config.cx, config.cy, cameraPointResult);
+    if (cameraSuccess)
+    {
+        std::cout << "================" << std::endl;
+        std::cout << "Camera X：" << cameraPointResult.X << std::endl;
+        std::cout << "Camera Y：" << cameraPointResult.Y << std::endl;
+        std::cout << "Camera Z：" << cameraPointResult.Z << std::endl;
+        result = cameraPointResult;
+        return true;
+    }
+    else {
+        return false;
+    }
 }

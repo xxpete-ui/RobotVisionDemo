@@ -4,13 +4,16 @@
 #include <opencv2/opencv.hpp>
 #include "Logger.h"
 #include "RobotVision.h"
+#include "ImageDemo.h"
 #include "TransformTest.h"
+#include <filesystem>
 
 
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
-    std::cout << "测试中文 ABC 123" << std::endl;
+    //std::cout << "当前工作目录：" << std::filesystem::current_path() << std::endl;
+    //std::cout << "图片是否存在："<< std::filesystem::exists("data/test.jpg") << std::endl;
     Logger::info("机器人视觉程序启动"); 
     
     std::vector<Target> targets =
@@ -48,16 +51,23 @@ int main()
             << bestTarget.target.confidence
             << std::endl;
 
+        std::cout << "当前抓取状态："
+            << bestTarget.target.grabbed
+            << std::endl;
+
         std::cout << "机器人抓取坐标："
             << bestTarget.robotPoint.X << ", "
             << bestTarget.robotPoint.Y << ", "
             << bestTarget.robotPoint.Z
             << std::endl;
+
+        bool marked = markTargetGrabbed(targets, bestTarget.target.id);
+        std::cout << "标记是否成功：" << marked << std::endl;
     }
     else {
         switch (vision.getStatus()) {
              case VisionStatus::InvalidCameraConfig:
-                 Logger::error("相机参数错误");
+                  Logger::error("相机参数错误");
                   std::cout << "相机参数错误" << std::endl;
                   break;
              case VisionStatus::InvalidTransform:
@@ -70,196 +80,24 @@ int main()
         
     }
 
-    // ================================
-    // 7. OpenCV 图片读取
-    // ================================
-
-    cv::Mat image =
-        cv::imread(
-            "data/test.jpg");
-
-
-    if (image.empty())
-    {
-        std::cout
-            << "图片读取失败"
-            << std::endl;
-
+    if (!showImageDemo("data/test.jpg")) {
         return 0;
     }
 
 
-    std::cout
-        << "================"
-        << std::endl;
-
-    std::cout
-        << "图片读取成功"
-        << std::endl;
-
-    std::cout
-        << "宽度："
-        << image.cols
-        << std::endl;
-
-    std::cout
-        << "高度："
-        << image.rows
-        << std::endl;
-
-    std::cout
-        << "通道数："
-        << image.channels()
-        << std::endl;
-
-    std::cout
-        << "图像类型："
-        << image.type()
-        << std::endl;
-
-
-    // ================================
-    // 8. Resize
-    // ================================
-
-    cv::Mat resized;
-
-    cv::resize(
-        image,
-        resized,
-        cv::Size(640, 480));
-
-
-    std::cout
-        << "================"
-        << std::endl;
-
-    std::cout
-        << "缩放后宽度："
-        << resized.cols
-        << std::endl;
-
-    std::cout
-        << "缩放后高度："
-        << resized.rows
-        << std::endl;
-
-
-    cv::imshow(
-        "Robot Vision",
-        image);
-
-    cv::imshow(
-        "Resized",
-        resized);
-
-    cv::waitKey(0);
-
-
-    // ================================
-    // 9. Letterbox 坐标还原
-    // ================================
-
-    double x = 450;
-    double y = 200;
-
-    double scale = 0.5;
-
-    double padX = 0;
-    double padY = 80;
-
-
-    point2D result =
-        restorePoint(
-            { x, y },
-            scale,
-            padX,
-            padY);
-
-
-    std::cout
-        << "================"
-        << std::endl;
-
-    std::cout
-        << "还原后的 x："
-        << result.x
-        << std::endl;
-
-    std::cout
-        << "还原后的 y："
-        << result.y
-        << std::endl;
-
-
-    // ================================
-    // 10. 还原后的像素 → 相机
-    // ================================
-
-    Target detectedTarget =
-    {
-        100,
-        0.95,
-        result.x,
-        result.y,
-        false
-    };
-
-
-    CameraPoint cameraPointResult;
-
-
-    bool cameraSuccess =
-        targetToCamera(
-            detectedTarget,
-            Z,
-            fx,
-            fy,
-            cx,
-            cy,
-            cameraPointResult);
-
-
-    if (cameraSuccess)
-    {
-        std::cout
-            << "================"
-            << std::endl;
-
-        std::cout
-            << "Camera X："
-            << cameraPointResult.X
-            << std::endl;
-
-        std::cout
-            << "Camera Y："
-            << cameraPointResult.Y
-            << std::endl;
-
-        std::cout
-            << "Camera Z："
-            << cameraPointResult.Z
-            << std::endl;
-    }
+    CameraPoint cameraPointResult{};
+    bool cameraSuccess = demoLetterboxToCamera(cameraConfig, cameraPointResult);
 
     if (cameraSuccess) {
         printRotateRobotPoint(cameraPointResult);
     }
-
-
     printRotationComposition();
-    // ================================
-    // 15. Transform 自动测试
-    // ================================
+
     bool testResult = testTransform();
     std::cout << "================" << std::endl;
-    if (testResult)
-    {
-        std::cout << "Transform test: PASS" << std::endl;
-    }
-    else
-    {
-        std::cout << "Transform test: FAIL" << std::endl;
-    }
+    if (testResult){
+        std::cout << "Transform test: PASS" << std::endl;}
+    else{
+        std::cout << "Transform test: FAIL" << std::endl;}
     return 0;
 }

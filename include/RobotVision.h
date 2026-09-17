@@ -56,12 +56,6 @@ enum class VisionStatus
 const Target* selectBestTarget(
     const std::vector<Target>& targets);
 
-
-void markValidTargetGrabbed(
-    std::vector<ValidTarget>& targets,
-    int targetId);
-
-
 bool targetToCamera(
     const Target& target,
     double Z,
@@ -97,6 +91,9 @@ bool isSamePoint(
 
 const ValidTarget* selectBestValidTarget(
     const std::vector<ValidTarget>& targets);
+
+
+bool markTargetGrabbed(std::vector<Target>& targets, int targetId);
 
 
 class RobotVision {

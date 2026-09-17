@@ -13,7 +13,7 @@ add_executable(
     src/RobotVision.cpp
     src/TransformTest.cpp
     src/Logger.cpp
- )
+    src/ImageDemo.cpp)
 
 target_include_directories(
     RobotVisionDemo

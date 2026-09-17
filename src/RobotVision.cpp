@@ -269,20 +269,6 @@ const Target* selectBestTarget(
 }
 
 
-void markValidTargetGrabbed(
-    std::vector<ValidTarget>& targets,
-    int targetId)
-{
-    for (auto& target : targets)
-    {
-        if (target.target.id == targetId)
-        {
-            target.target.grabbed = true;
-            return;
-        }
-    }
-}
-
 
 const ValidTarget* selectBestValidTarget(
     const std::vector<ValidTarget>& targets
@@ -464,6 +450,9 @@ std::vector<ValidTarget> RobotVision::processTargets(
     // 相机坐标{X, Y, Z}
     
     for (const auto& target : targets) {
+        if (target.grabbed) {
+            continue;
+        }
         CameraPoint cameraPoint;
         bool cameraPoint_result = targetToCamera(target, this->Z, this->fx, this->fy, this->cx, this->cy, cameraPoint);
         if (!cameraPoint_result) {
@@ -498,9 +487,6 @@ bool RobotVision::runVisionPipeline(
         Logger::warn("没有有效目标，跳过");
         return false;
     }
-    int bestID = bestValidTarget->target.id;
-
-    markValidTargetGrabbed(processPipeline_result, bestID);
 
     bestTarget = *bestValidTarget;
     status = VisionStatus::OK;
@@ -538,12 +524,14 @@ bool RobotVision::run(
     const std::vector<Target>& targets,
     ValidTarget& bestTarget)
 {
-    
-    if (status != VisionStatus::OK) {
+    if (status == VisionStatus::InvalidCameraConfig ||
+        status == VisionStatus::InvalidTransform) {
         Logger::warn("RobotVision 状态异常");
         return false;
     }
-    return RobotVision::runVisionPipeline(targets, bestTarget);
+    // 新的一帧开始，清除上一帧的 NoValidTarget
+    status = VisionStatus::OK;
+    return runVisionPipeline(targets, bestTarget);
 }
 
 bool RobotVision::checkCameraConfig() {
@@ -573,4 +561,14 @@ bool RobotVision::checkTransform() {
 VisionStatus RobotVision::getStatus() const
 {
     return status;
+}
+
+bool markTargetGrabbed(std::vector<Target>& targets, int targetId) {
+    for (auto& target : targets) {
+        if (target.id == targetId) {
+            target.grabbed = true;
+            return true;
+        }
+    }
+    return false;
 }
