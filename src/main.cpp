@@ -2,7 +2,7 @@
 #include <vector>
 #include <windows.h>
 #include <opencv2/opencv.hpp>
-#include "logger.h"
+#include "Logger.h"
 #include "RobotVision.h"
 #include "TransformTest.h"
 
@@ -242,238 +242,24 @@ int main()
             << std::endl;
     }
 
-
-    // ================================
-    // 11. Rz(90°) + 平移
-    // ================================
-
-    double T_1[4][4];
-
-    double R[3][3];
-
-
-    RobotVision::rotationZ(
-        90.0,
-        R);
-
-
-    RobotVision::buildTransform(
-        R,
-        0.7,
-        2.1,
-        3.0,
-        T_1);
-
-
-    if (cameraSuccess)
-    {
-        RobotPoint robotResult = cameraToRobot(cameraPointResult, T_1);
-
-        std::cout << "================" << std::endl;
-        std::cout << "Rz + 平移后的机器人坐标：" << std::endl;
-        std::cout << "x: " << robotResult.X << std::endl;
-        std::cout << "y: " << robotResult.Y << std::endl;
-        std::cout << "z: " << robotResult.Z << std::endl;
+    if (cameraSuccess) {
+        printRotateRobotPoint(cameraPointResult);
     }
 
 
-    // ================================
-    // 12. Rx + Ry + Rz
-    // ================================
-
-    double Rx[3][3];
-    double Ry[3][3];
-    double Rz[3][3];
-
-    RobotVision::rotationX(
-        30.0,
-        Rx);
-
-    RobotVision::rotationY(
-        20.0,
-        Ry);
-
-    RobotVision::rotationZ(
-        90.0,
-        Rz);
-
-
-    double temp[3][3];
-    double R_1[3][3];
-
-
-    // Rz × Ry × Rx
-
-    RobotVision::multiplyMatrix3x3(
-        Ry,
-        Rx,
-        temp);
-
-    RobotVision::multiplyMatrix3x3(
-        Rz,
-        temp,
-        R_1);
-
-
-    std::cout
-        << "Rz × Ry × Rx："
-        << std::endl;
-
-
-    for (int row = 0;
-        row < 3;
-        row++)
-    {
-        for (int col = 0;
-            col < 3;
-            col++)
-        {
-            std::cout
-                << R_1[row][col]
-                << "\t";
-        }
-
-        std::cout
-            << std::endl;
-    }
-
-
-    // ================================
-    // 13. Rx × Ry × Rz
-    // ================================
-
-    double temp2[3][3];
-    double R_2[3][3];
-
-
-    RobotVision::multiplyMatrix3x3(
-        Ry,
-        Rz,
-        temp2);
-
-    RobotVision::multiplyMatrix3x3(
-        Rx,
-        temp2,
-        R_2);
-
-
-    std::cout
-        << "Rx × Ry × Rz："
-        << std::endl;
-
-
-    for (int row = 0;
-        row < 3;
-        row++)
-    {
-        for (int col = 0;
-            col < 3;
-            col++)
-        {
-            std::cout
-                << R_2[row][col]
-                << "\t";
-        }
-
-        std::cout
-            << std::endl;
-    }
-
-
-    // ================================
-    // 14. Transform 正逆验证
-    // ================================
-
-    double T_3[4][4] =
-    {
-        {0, -1, 0, 1.0},
-        {1,  0, 0, 0.5},
-        {0,  0, 1, 0.2},
-        {0,  0, 0, 1.0}
-    };
-
-
-    double T_inverse[4][4];
-
-
-    bool inverseSuccess = RobotVision::inverseTransform(
-            T_3,
-            T_inverse);
-
-
-    if (inverseSuccess)
-    {
-        CameraPoint originalCamera =
-        {
-            0.2,
-            0.1,
-            2.0
-        };
-
-
-        RobotPoint robotPoint =
-            cameraToRobot(
-                originalCamera,
-                T_3);
-
-
-        std::cout
-            << "================"
-            << std::endl;
-
-        std::cout
-            << "Robot point: "
-            << robotPoint.X
-            << ", "
-            << robotPoint.Y
-            << ", "
-            << robotPoint.Z
-            << std::endl;
-
-
-        CameraPoint cameraPointBack =
-            robotToCamera(
-                robotPoint,
-                T_inverse);
-
-
-        std::cout
-            << "Camera point back: "
-            << cameraPointBack.X
-            << ", "
-            << cameraPointBack.Y
-            << ", "
-            << cameraPointBack.Z
-            << std::endl;
-    }
-
-
+    printRotationComposition();
     // ================================
     // 15. Transform 自动测试
     // ================================
-
-    bool testResult =
-        testTransform();
-
-
-    std::cout
-        << "================"
-        << std::endl;
-
-
+    bool testResult = testTransform();
+    std::cout << "================" << std::endl;
     if (testResult)
     {
-        std::cout
-            << "Transform test: PASS"
-            << std::endl;
+        std::cout << "Transform test: PASS" << std::endl;
     }
     else
     {
-        std::cout
-            << "Transform test: FAIL"
-            << std::endl;
+        std::cout << "Transform test: FAIL" << std::endl;
     }
-
-
     return 0;
 }
