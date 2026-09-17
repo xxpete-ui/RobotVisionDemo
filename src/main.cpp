@@ -2,6 +2,7 @@
 #include <vector>
 #include <windows.h>
 #include <opencv2/opencv.hpp>
+#include "logger.h"
 #include "RobotVision.h"
 #include "TransformTest.h"
 
@@ -9,12 +10,14 @@
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
-
+    std::cout << "测试中文 ABC 123" << std::endl;
+    Logger::info("机器人视觉程序启动"); 
+    
     std::vector<Target> targets =
     {
         {1, 0.72, 600, 350, false},
-        {2, 0.95, 720, 400, false},
-        {3, 0.82, 500, 300, false}
+        {2, 0.75, 720, 400, false},
+        {3, 0.68, 500, 300, false}
     };
 
     double Z = 2.0;
@@ -54,6 +57,7 @@ int main()
     else {
         switch (vision.getStatus()) {
              case VisionStatus::InvalidCameraConfig:
+                 Logger::error("相机参数错误");
                   std::cout << "相机参数错误" << std::endl;
                   break;
              case VisionStatus::InvalidTransform:

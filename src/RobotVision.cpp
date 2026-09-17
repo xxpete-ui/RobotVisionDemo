@@ -1,5 +1,5 @@
 ﻿#include "RobotVision.h"
-
+#include "logger.h"
 #include <cmath>
 #include <iostream>
 
@@ -338,10 +338,7 @@ bool targetToCamera(
         fx <= 0 ||
         fy <= 0)
     {
-        std::cout
-            << "相机参数错误"
-            << std::endl;
-
+        Logger::error("相机参数错误");
         return false;
     }
 
@@ -470,7 +467,7 @@ std::vector<ValidTarget> RobotVision::processTargets(
         CameraPoint cameraPoint;
         bool cameraPoint_result = targetToCamera(target, this->Z, this->fx, this->fy, this->cx, this->cy, cameraPoint);
         if (!cameraPoint_result) {
-            std::cout << "无效目标，跳过" << std::endl;
+            Logger::warn("无效目标，跳过");
             continue;
         }
         RobotPoint robotPoint = cameraToRobot(cameraPoint, T);
@@ -491,14 +488,14 @@ bool RobotVision::runVisionPipeline(
     std::vector<ValidTarget> processPipeline_result = RobotVision::processTargets(targets);
     if (processPipeline_result.empty()) {
         status = VisionStatus::NoValidTarget;
-        std::cout << "没有有效目标，跳过" << std::endl;
+        Logger::warn("没有有效目标，跳过");
         return false;
     }
     
     const ValidTarget* bestValidTarget = selectBestValidTarget(processPipeline_result);
     if (bestValidTarget == nullptr) {
         status = VisionStatus::NoValidTarget;
-        std::cout << "没有有效目标，跳过" << std::endl;
+        Logger::warn("没有有效目标，跳过");
         return false;
     }
     int bestID = bestValidTarget->target.id;
@@ -543,9 +540,7 @@ bool RobotVision::run(
 {
     
     if (status != VisionStatus::OK) {
-        std::cout << "RobotVision 状态异常: " <<
-            statusToString(status)<<
-            std::endl;
+        Logger::warn("RobotVision 状态异常");
         return false;
     }
     return RobotVision::runVisionPipeline(targets, bestTarget);
