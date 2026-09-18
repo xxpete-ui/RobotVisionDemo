@@ -19,16 +19,6 @@ bool showImageDemo(const std::string& imagePath) {
     std::cout << "channels："<< image.channels() << std::endl;
     std::cout << "type："<< image.type() << std::endl;
 
-
-    cv::Mat shared = image;
-    cv::Mat independent = image.clone();
-    std::cout << std::boolalpha;
-    std::cout << "shared 是否共用图像数据："
-        << (shared.data == image.data) << std::endl;
-    std::cout << "clone 是否共用图像数据："
-        << (independent.data == image.data) << std::endl;
-
-
     cv::Mat resized;
     cv::resize(image, resized, cv::Size(640, 480));
     std::cout << "================" << std::endl;

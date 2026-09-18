@@ -6,20 +6,35 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_compile_options(/utf-8)
 find_package(OpenCV REQUIRED)
+enable_testing()
+
+add_library(RobotVisionCore STATIC
+    src/RobotVision.cpp
+    src/Logger.cpp
+)
+
+target_include_directories(RobotVisionCore PUBLIC include)
 
 add_executable(
     RobotVisionDemo
     src/main.cpp
-    src/RobotVision.cpp
     src/TransformTest.cpp
-    src/Logger.cpp
-    src/ImageDemo.cpp)
-
-target_include_directories(
-    RobotVisionDemo
-    PRIVATE
-    include
+    src/ImageDemo.cpp
 )
+
+add_executable(RobotVisionStateTest
+    tests/RobotVisionStateTest.cpp
+)
+
+target_link_libraries(RobotVisionStateTest
+    PRIVATE RobotVisionCore
+)
+
+add_test(NAME VisionRecovery
+    COMMAND RobotVisionStateTest recovery)
+
+add_test(NAME GrabbedTargetFiltering
+    COMMAND RobotVisionStateTest filtering)
 
 # Windows 下运行时自动复制 OpenCV Debug DLL
 if (WIN32)
@@ -30,8 +45,8 @@ if (WIN32)
     )
 endif()
 
-target_link_libraries(
-    RobotVisionDemo
+target_link_libraries(RobotVisionDemo
     PRIVATE
+    RobotVisionCore
     ${OpenCV_LIBS}
 )
