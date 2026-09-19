@@ -1,5 +1,8 @@
 ﻿#include "RobotVision.h"
 #include "TransformTest.h"
+#include "VisionTypes.h"
+#include "CoordinateTransform.h"
+#include "TransformUtils.h"
 #include <iostream>
 
 
@@ -26,7 +29,7 @@ bool testTransform()
     // ================================
 
     bool success =
-        RobotVision::inverseTransform(
+        TransformUtils::inverseTransform(
             T_valid,
             T_inverse);
 
@@ -57,8 +60,7 @@ bool testTransform()
     // 4. Camera → Robot
     // ================================
 
-    RobotPoint robot =
-        cameraToRobot(
+    RobotPoint robot = CoordinateTransform::cameraToRobot(
             original,
             T_valid);
 
@@ -83,8 +85,7 @@ bool testTransform()
     // 5. Robot → Camera
     // ================================
 
-    CameraPoint back =
-        robotToCamera(
+    CameraPoint back = CoordinateTransform::robotToCamera(
             robot,
             T_inverse);
 
@@ -101,7 +102,7 @@ bool testTransform()
     // 6. 检查 Round Trip
     // ================================
 
-    if (!isSamePoint(
+    if (!CoordinateTransform::isSamePoint(
         original,
         back,
         1e-6))
@@ -129,7 +130,7 @@ bool testTransform()
 
     double invalidInverse[4][4];
 
-    bool invalidResult = RobotVision::inverseTransform(
+    bool invalidResult = TransformUtils::inverseTransform(
             T_invalid,
             invalidInverse);
 
@@ -159,16 +160,16 @@ void printRotationComposition() {
     double Ry[3][3];
     double Rz[3][3];
 
-    RobotVision::rotationX(30.0,Rx);
-    RobotVision::rotationY(20.0,Ry);
-    RobotVision::rotationZ(90.0,Rz);
+    TransformUtils::rotationX(30.0,Rx);
+    TransformUtils::rotationY(20.0,Ry);
+    TransformUtils::rotationZ(90.0,Rz);
     double temp[3][3];
     double R_1[3][3];
 
 
     // Rz × Ry × Rx
-    RobotVision::multiplyMatrix3x3(Ry,Rx,temp);
-    RobotVision::multiplyMatrix3x3(Rz,temp,R_1);
+    TransformUtils::multiplyMatrix3x3(Ry,Rx,temp);
+    TransformUtils::multiplyMatrix3x3(Rz,temp,R_1);
     std::cout<< "Rz × Ry × Rx："<< std::endl;
     for (int row = 0;row < 3;row++)
     {
@@ -180,8 +181,8 @@ void printRotationComposition() {
     }
     double temp2[3][3];
     double R_2[3][3];
-    RobotVision::multiplyMatrix3x3(Ry,Rz,temp2);
-    RobotVision::multiplyMatrix3x3(Rx,temp2,R_2);
+    TransformUtils::multiplyMatrix3x3(Ry,Rz,temp2);
+    TransformUtils::multiplyMatrix3x3(Rx,temp2,R_2);
     std::cout<< "Rx × Ry × Rz："<< std::endl;
     for (int row = 0;row < 3;row++)
     {
@@ -203,9 +204,9 @@ void printRotateRobotPoint(const CameraPoint& cameraPoint) {
 
     double T_1[4][4];
     double R[3][3];
-    RobotVision::rotationZ(90.0, R);
-    RobotVision::buildTransform(R, 0.7, 2.1, 3.0, T_1);
-    RobotPoint robotResult = cameraToRobot(cameraPoint, T_1);
+    TransformUtils::rotationZ(90.0, R);
+    TransformUtils::buildTransform(R, 0.7, 2.1, 3.0, T_1);
+    RobotPoint robotResult = CoordinateTransform::cameraToRobot(cameraPoint, T_1);
     std::cout << "================" << std::endl;
     std::cout << "Rz + 平移后的机器人坐标：" << std::endl;
     std::cout << "x: " << robotResult.X << std::endl;
@@ -220,7 +221,7 @@ bool demoLetterboxToCamera(const CameraConfig& config, CameraPoint& result) {
     double scale = 0.5;
     double padX = 0;
     double padY = 80;
-    point2D result_restore = restorePoint({ x, y }, scale, padX, padY);
+    Point2D result_restore = CoordinateTransform::restorePoint({ x, y }, scale, padX, padY);
 
 
     std::cout << "================" << std::endl;
@@ -239,7 +240,7 @@ bool demoLetterboxToCamera(const CameraConfig& config, CameraPoint& result) {
 
 
     CameraPoint cameraPointResult;
-    bool cameraSuccess = targetToCamera(detectedTarget, config.Z, config.fx, config.fy, config.cx, config.cy, cameraPointResult);
+    bool cameraSuccess = CoordinateTransform::targetToCamera(detectedTarget, config.Z, config.fx, config.fy, config.cx, config.cy, cameraPointResult);
     if (cameraSuccess)
     {
         std::cout << "================" << std::endl;

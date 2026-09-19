@@ -4,6 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include "Logger.h"
 #include "RobotVision.h"
+#include "TargetProcessing.h"
 #include "ImageDemo.h"
 #include "TransformTest.h"
 #include <filesystem>
@@ -31,9 +32,9 @@ int main()
 
     double T[4][4] =
     {
-        {1, 0, 0, 0.7},
-        {0, 1, 0, 2.1},
-        {0, 0, 1, 3.0},
+        {0, 0, 0, 0.7},
+        {0, 0, 0, 2.1},
+        {0, 0, 0, 3.0},
         {0, 0, 0, 1.0}
     };
     CameraConfig cameraConfig = { Z, fx, fy, cx, cy };
@@ -61,7 +62,7 @@ int main()
             << bestTarget.robotPoint.Z
             << std::endl;
 
-        bool marked = markTargetGrabbed(targets, bestTarget.target.id);
+        bool marked = TargetProcessing::markTargetGrabbed(targets, bestTarget.target.id);
         std::cout << "标记是否成功：" << marked << std::endl;
     }
     else {

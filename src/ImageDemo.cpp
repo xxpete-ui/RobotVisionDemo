@@ -1,12 +1,16 @@
 #include "ImageDemo.h"
 #include "opencv2/opencv.hpp"
 #include <iostream>
+#ifdef _WIN32
 #include <windows.h>
+#endif
 
 
 bool showImageDemo(const std::string& imagePath) {
     cv::Mat image =cv::imread(imagePath);
+#ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
+#endif
     if (image.empty())
     {
         std::cout << "fail to load image" << std::endl;
