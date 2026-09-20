@@ -317,6 +317,106 @@ bool testInvalidInverseTransform() {
 }
 
 
+bool testInvalidProjectionParameters()
+{
+    const Target target{
+        1,
+        0.90,
+        720,
+        400,
+        false
+    };
+
+    CameraPoint result{};
+
+    const bool converted = CoordinateTransform::targetToCamera(
+        target,
+        2.0,
+        0.0,
+        800.0,
+        640.0,
+        360.0,
+        result
+    );
+
+    if (converted) {
+        std::cerr << "FAIL: targetToCamera accepted fx = 0\n";
+        return false;
+    }
+
+    return true;
+
+}
+
+
+bool testRotationMatrixGeneration() {
+    RotationMatrix rotation{};
+
+    TransformUtils::rotationZ(
+        90.0,
+        rotation
+    );
+    /*
+        理论上的 Rz(90°)：
+
+        0  -1   0
+        1   0   0
+        0   0   1
+
+        cos(90°) 实际可能是 6.123e-17，
+        因此使用 nearlyEqual() 比较。
+    */
+
+    if (!nearlyEqual(rotation[0][0], 0.0) ||
+        !nearlyEqual(rotation[0][1], -1.0) ||
+        !nearlyEqual(rotation[0][2], 0.0) ||
+        !nearlyEqual(rotation[1][0], 1.0) ||
+        !nearlyEqual(rotation[1][1], 0.0) ||
+        !nearlyEqual(rotation[1][2], 0.0) ||
+        !nearlyEqual(rotation[2][0], 0.0) ||
+        !nearlyEqual(rotation[2][1], 0.0) ||
+        !nearlyEqual(rotation[2][2], 1.0)) {
+        std::cerr
+            << "FAIL: incorrect Z rotation matrix\n";
+        return false;
+    }
+
+    if (!TransformUtils::isValidRotationMatrix(rotation)) {
+        std::cerr << "FAIL: generated rotation matrix is invalid\n";
+        return false;
+    }
+
+    return true;
+}
+
+
+bool testRotationMatrixMultiplication() {
+    const RotationMatrix identity{ {
+        {{1.0, 0.0, 0.0}},
+        {{0.0, 1.0, 0.0}},
+        {{0.0, 0.0, 1.0}}
+    } };
+
+    RotationMatrix rotation{};
+    TransformUtils::rotationZ(90.0, rotation);
+
+    RotationMatrix result{};
+
+    TransformUtils::multiplyMatrix3x3(identity, rotation, result);
+    //I × R应该等于R
+    for (std::size_t row = 0; row < result.size(); row++) {
+        for (std::size_t col = 0; col < result[row].size(); ++col) {
+            if (!nearlyEqual(result[row][col], rotation[row][col])) {
+                std::cerr << "FAIL: incorrect matrix multiplication\n";
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+
+
 int main(int argc, char* argv[])
 {
     struct TestScenario
@@ -333,7 +433,10 @@ int main(int argc, char* argv[])
         {"pipeline", testSuccessfulPipeline},
         {"rotation", testRotationTransform},
         {"inverse", testInverseTransformRoundTrip},
-        {"invalid-inverse", testInvalidInverseTransform}
+        {"invalid-inverse", testInvalidInverseTransform},
+        {"invalid-projection", testInvalidProjectionParameters},
+        {"rotation-matrix", testRotationMatrixGeneration},
+        {"matrix-multiply", testRotationMatrixMultiplication}
     };
 
     if (argc != 2) {

@@ -1,5 +1,5 @@
 #pragma once
-#include "RobotVision.h"
+#include "VisionTypes.h"
 
 bool testTransform();
 

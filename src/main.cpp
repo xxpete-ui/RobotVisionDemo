@@ -1,18 +1,22 @@
 ﻿#include <iostream>
 #include <vector>
+#ifdef _WIN32
 #include <windows.h>
+#endif
 #include <opencv2/opencv.hpp>
 #include "Logger.h"
 #include "RobotVision.h"
+#include "VisionTypes.h"
 #include "TargetProcessing.h"
 #include "ImageDemo.h"
 #include "TransformTest.h"
-#include <filesystem>
 
 
 int main()
 {
+#ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
+#endif
     //std::cout << "当前工作目录：" << std::filesystem::current_path() << std::endl;
     //std::cout << "图片是否存在："<< std::filesystem::exists("data/test.jpg") << std::endl;
     Logger::info("机器人视觉程序启动"); 
@@ -32,9 +36,9 @@ int main()
 
     double T[4][4] =
     {
-        {0, 0, 0, 0.7},
-        {0, 0, 0, 2.1},
-        {0, 0, 0, 3.0},
+        {1, 0, 0, 0.7},
+        {0, 1, 0, 2.1},
+        {0, 0, 1, 3.0},
         {0, 0, 0, 1.0}
     };
     CameraConfig cameraConfig = { Z, fx, fy, cx, cy };

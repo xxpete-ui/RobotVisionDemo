@@ -1,4 +1,6 @@
-#pragma once
+﻿#pragma once
+
+#include <array>
 
 struct Target {
     int id;
@@ -38,6 +40,12 @@ struct Point2D {
     double x;
     double y;
 };
+
+using RotationMatrix =
+std::array<std::array<double, 3>, 3>;
+
+using TransformMatrix =
+std::array<std::array<double, 4>, 4>;
 
 enum class VisionStatus {
     OK,

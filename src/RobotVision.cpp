@@ -50,7 +50,7 @@ std::vector<ValidTarget> RobotVision::processTargets(
             continue;
         }
         RobotPoint robotPoint = CoordinateTransform::cameraToRobot(cameraPoint, T);
-        ValidTarget validTarget;
+        ValidTarget validTarget{};
         validTarget.target = target;
         validTarget.cameraPoint = cameraPoint;
         validTarget.robotPoint = robotPoint;
@@ -130,13 +130,13 @@ bool RobotVision::checkTransform() {
         fabs(T[3][1]) < EPS &&
         fabs(T[3][2]) < EPS &&
         fabs(T[3][3] - 1.0)  < EPS) {
-        double T_test[3][3];
+        RotationMatrix rotation{};
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
-                T_test[row][col] = T[row][col];
+                rotation[row][col] = T[row][col];
             }
         }
-        return TransformUtils::isValidRotationMatrix(T_test);
+        return TransformUtils::isValidRotationMatrix(rotation);
     }
     else {
         return false;

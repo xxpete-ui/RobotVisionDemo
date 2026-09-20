@@ -88,13 +88,34 @@ add_vision_test(
     validation
 )
 
+add_vision_test(
+    testInvalidProjectionParameters
+    invalid-projection
+    validation
+)
+
+add_vision_test(
+    testRotationMatrixGeneration
+    rotation-matrix
+    transform
+)
+
+add_vision_test(
+    testRotationMatrixMultiplication
+    matrix-multiply
+    transform
+)
+
 
 # Windows 下运行时自动复制 OpenCV Debug DLL
-if (WIN32)
-    add_custom_command(TARGET RobotVisionDemo POST_BUILD
+if (WIN32 AND TARGET opencv_world)
+    add_custom_command(
+        TARGET RobotVisionDemo
+        POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "C:/OpenCV/opencv/build/x64/vc16/bin/opencv_world4140d.dll"
-        "$<TARGET_FILE_DIR:RobotVisionDemo>"
+            "$<TARGET_FILE:opencv_world>"
+            "$<TARGET_FILE_DIR:RobotVisionDemo>"
+        COMMENT "Copying OpenCV runtime DLL"
     )
 endif()
 
