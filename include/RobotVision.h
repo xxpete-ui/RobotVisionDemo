@@ -1,7 +1,7 @@
 #pragma once
 #include "VisionTypes.h"
 #include <vector>
-
+#include <optional>
 
 class RobotVision {
 public:
@@ -10,11 +10,11 @@ public:
         const CameraConfig& cameraConfig,
         const TransformMatrix& transform);
 
-    bool run(
-        const std::vector<Target>& targets,
-        ValidTarget& bestTarget);
+    [[nodiscard]]
+    std::optional<ValidTarget> run(
+        const std::vector<Target>& targets);
 
-
+    [[nodiscard]]
     VisionStatus getStatus() const;
 
     const char* statusToString(VisionStatus status);
@@ -24,13 +24,12 @@ private:
     TransformMatrix T{};
 
     VisionStatus status;
-    bool checkCameraConfig();
+    bool checkCameraConfig() const;
     
-    bool checkTransform();
+    bool checkTransform() const;
 
-    bool runVisionPipeline(
-        const std::vector<Target>& targets,
-        ValidTarget& bestTarget);
+    std::optional<ValidTarget> runVisionPipeline(
+        const std::vector<Target>& targets) const;
 
-    std::vector<ValidTarget> processTargets(const std::vector<Target>& targets);
+    std::vector<ValidTarget> processTargets(const std::vector<Target>& targets) const;
 };

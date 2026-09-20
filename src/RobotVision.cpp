@@ -1,10 +1,9 @@
 ﻿#include "RobotVision.h"
 #include "Logger.h"
-#include "VisionTypes.h"
 #include "TargetProcessing.h"
 #include "CoordinateTransform.h"
 #include "TransformUtils.h"
-#include <iostream>
+#include <optional>
 
 
 const char* RobotVision::statusToString(VisionStatus status) {
@@ -28,7 +27,7 @@ const char* RobotVision::statusToString(VisionStatus status) {
 
 
 std::vector<ValidTarget> RobotVision::processTargets(
-    const std::vector<Target>& targets)
+    const std::vector<Target>& targets) const
 {
     std::vector<ValidTarget> validTargets;
     validTargets.reserve(targets.size());
@@ -65,79 +64,73 @@ std::vector<ValidTarget> RobotVision::processTargets(
 
 }
 
-bool RobotVision::runVisionPipeline(
-    const std::vector<Target>& targets,
-    ValidTarget& bestTarget
-) {
-    std::vector<ValidTarget> processPipeline_result = RobotVision::processTargets(targets);
-    if (processPipeline_result.empty()) {
-        status = VisionStatus::NoValidTarget;
-        Logger::warn("没有有效目标，跳过");
-        return false;
-    }
-    
-    const ValidTarget* bestValidTarget = TargetProcessing::selectBestValidTarget(processPipeline_result);
-    if (bestValidTarget == nullptr) {
-        status = VisionStatus::NoValidTarget;
-        Logger::warn("没有有效目标，跳过");
-        return false;
+std::optional<ValidTarget>
+RobotVision::runVisionPipeline(
+    const std::vector<Target>& targets) const
+{
+    const std::vector<ValidTarget> validTargets =
+        processTargets(targets);
+
+    const ValidTarget* selectedTarget =
+        TargetProcessing::selectBestValidTarget(
+            validTargets);
+
+    if (selectedTarget == nullptr)
+    {
+        return std::nullopt;
     }
 
-    bestTarget = *bestValidTarget;
-    status = VisionStatus::OK;
-    return true;
+    return *selectedTarget;
 }
 
 RobotVision::RobotVision(
     const CameraConfig& config,
     const TransformMatrix& transform)
     : cameraConfig(config),
-      status(VisionStatus::OK)
-
+    T(transform),
+    status(VisionStatus::OK)
 {
-    for (int row = 0; row < 4; row++) {
-        for (int col = 0; col < 4; col++) {
-            this->T[row][col] = transform[row][col];
-        }
-    }
-
-    if (!checkCameraConfig()) {
+    if (!checkCameraConfig())
+    {
         status = VisionStatus::InvalidCameraConfig;
     }
-
-    else if (!checkTransform()) {
+    else if (!checkTransform())
+    {
         status = VisionStatus::InvalidTransform;
     }
 }
 
-bool RobotVision::run(
-    const std::vector<Target>& targets,
-    ValidTarget& bestTarget)
+std::optional<ValidTarget> RobotVision::run(
+    const std::vector<Target>& targets)
 {
     if (status == VisionStatus::InvalidCameraConfig ||
-        status == VisionStatus::InvalidTransform) {
+        status == VisionStatus::InvalidTransform)
+    {
         Logger::warn("RobotVision 状态异常");
-        return false;
+        return std::nullopt;
     }
-    // 新的一帧开始，清除上一帧的 NoValidTarget
+
+    const std::optional<ValidTarget> selectedTarget =
+        runVisionPipeline(targets);
+
+    if (!selectedTarget)
+    {
+        status = VisionStatus::NoValidTarget;
+        Logger::warn("没有有效目标，跳过");
+        return std::nullopt;
+    }
+
     status = VisionStatus::OK;
-    return runVisionPipeline(targets, bestTarget);
+    return selectedTarget;
 }
 
-bool RobotVision::checkCameraConfig()
+bool RobotVision::checkCameraConfig() const
 {
-    return
-        std::isfinite(cameraConfig.Z) &&
-        std::isfinite(cameraConfig.fx) &&
-        std::isfinite(cameraConfig.fy) &&
-        std::isfinite(cameraConfig.cx) &&
-        std::isfinite(cameraConfig.cy) &&
-        cameraConfig.Z > 0.0 &&
-        cameraConfig.fx > 0.0 &&
-        cameraConfig.fy > 0.0;
+    return CoordinateTransform::isValidCameraConfig(
+        cameraConfig);
 }
 
-bool RobotVision::checkTransform()
+bool RobotVision::checkTransform() const
 {
     return TransformUtils::isValidTransformMatrix(T);
 }

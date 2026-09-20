@@ -43,22 +43,28 @@ namespace {
 bool testRecovery() {
     RobotVision vision(kDefaultCamera, kIdentityTransform);
     std::vector<Target> targets{ {3, 0.80, 720, 400, true} };
-    ValidTarget result{};
+    const auto missingResult = vision.run(targets);
 
-    if (vision.run(targets, result) ||
-        vision.getStatus() != VisionStatus::NoValidTarget) {
+    if (missingResult ||
+        vision.getStatus() != VisionStatus::NoValidTarget)
+    {
         std::cerr << "FAIL: expected NoValidTarget\n";
         return false;
     }
 
     targets[0].grabbed = false;
-    if (!vision.run(targets, result) ||
+
+    const auto recoveredResult =
+        vision.run(targets);
+
+    if (!recoveredResult ||
         vision.getStatus() != VisionStatus::OK ||
-        result.target.id != 3) {
-        std::cerr << "FAIL: expected recovery with target ID 3\n";
+        recoveredResult->target.id != 3)
+    {
+        std::cerr
+            << "FAIL: expected recovery with target ID 3\n";
         return false;
     }
-
     return true;
 }
 
@@ -69,27 +75,35 @@ bool testGrabbedTargetFiltering() {
         {1, 0.72, 700, 380, false},
         {2, 0.75, 720, 400, false}
     };
-    ValidTarget selected{};
+    const auto firstSelected =
+        vision.run(targets);
 
-    if (TargetProcessing::markTargetGrabbed(targets, 999) ||
-        targets[0].grabbed || targets[1].grabbed) {
-        std::cerr << "FAIL: unknown ID changed target state\n";
+    if (!firstSelected ||
+        firstSelected->target.id != 2)
+    {
+        std::cerr
+            << "FAIL: expected target ID 2 first\n";
         return false;
     }
 
-    if (!vision.run(targets, selected) || selected.target.id != 2) {
-        std::cerr << "FAIL: expected target ID 2 first\n";
+    if (!TargetProcessing::markTargetGrabbed(
+        targets,
+        firstSelected->target.id) ||
+        !targets[1].grabbed)
+    {
+        std::cerr
+            << "FAIL: could not mark target ID 2\n";
         return false;
     }
 
-    if (!TargetProcessing::markTargetGrabbed(targets, selected.target.id) ||
-        !targets[1].grabbed) {
-        std::cerr << "FAIL: could not mark target ID 2\n";
-        return false;
-    }
+    const auto secondSelected =
+        vision.run(targets);
 
-    if (!vision.run(targets, selected) || selected.target.id != 1) {
-        std::cerr << "FAIL: expected target ID 1 after grabbing ID 2\n";
+    if (!secondSelected ||
+        secondSelected->target.id != 1)
+    {
+        std::cerr
+            << "FAIL: expected target ID 1 after grabbing ID 2\n";
         return false;
     }
 
@@ -112,14 +126,12 @@ bool testInvalidCameraConfig() {
         {1, 0.90, 720, 400, false}
     };
 
-    ValidTarget result{};
-
     if (vision.getStatus() != VisionStatus::InvalidCameraConfig) {
         std::cerr << "FAIL: expected InvalidCameraConfig after construction\n";
         return false;
     }
 
-    if (vision.run(targets, result)) {
+    if (vision.run(targets)) {
         std::cerr
             << "FAIL: run succeeded with invalid camera config\n";
         return false;
@@ -142,15 +154,13 @@ bool testInvalidTransform() {
         {1, 0.90, 720, 400, false}
     };
 
-    ValidTarget result{};
-
     if (vision.getStatus() != VisionStatus::InvalidTransform) {
         std::cerr
             << "FAIL: expected InvalidTransform after construction\n";
         return false;
     }
 
-    if (vision.run(targets, result)) {
+    if (vision.run(targets)) {
         std::cerr
             << "FAIL: run succeeded with invalid transform\n";
         return false;
@@ -178,10 +188,12 @@ bool testSuccessfulPipeline() {
     std::vector<Target> targets{
         {1, 0.90, 720, 400, false}
     };
-    ValidTarget result{};
+    const auto result = vision.run(targets);
 
-    if (!vision.run(targets, result)) {
-        std::cerr << "FAIL: valid pipeline did not run\n";
+    if (!result)
+    {
+        std::cerr
+            << "FAIL: valid pipeline did not run\n";
         return false;
     }
 
@@ -190,21 +202,21 @@ bool testSuccessfulPipeline() {
         return false;
     }
 
-    if (result.target.id != 1) {
+    if (result->target.id != 1) {
         std::cerr << "FAIL: unexpected selected target\n";
         return false;
     }
 
-    if (!nearlyEqual(result.cameraPoint.X, 0.2) ||
-        !nearlyEqual(result.cameraPoint.Y, 0.1) ||
-        !nearlyEqual(result.cameraPoint.Z, 2.0)) {
+    if (!nearlyEqual(result->cameraPoint.X, 0.2) ||
+        !nearlyEqual(result->cameraPoint.Y, 0.1) ||
+        !nearlyEqual(result->cameraPoint.Z, 2.0)) {
         std::cerr << "FAIL: incorrect camera coordinates\n";
         return false;
     }
 
-    if (!nearlyEqual(result.robotPoint.X, 0.9) ||
-        !nearlyEqual(result.robotPoint.Y, 2.2) ||
-        !nearlyEqual(result.robotPoint.Z, 5.0)) {
+    if (!nearlyEqual(result->robotPoint.X, 0.9) ||
+        !nearlyEqual(result->robotPoint.Y, 2.2) ||
+        !nearlyEqual(result->robotPoint.Z, 5.0)) {
         std::cerr << "FAIL: incorrect translated robot coordinates\n";
         return false;
     }
@@ -227,17 +239,20 @@ bool testRotationTransform() {
     std::vector<Target> targets{
         {1, 0.90, 720, 400, false}
     };
-    ValidTarget result{};
+    const auto result =
+        vision.run(targets);
 
-    if (!vision.run(targets, result)) {
-        std::cerr << "FAIL: rotation pipeline did not run\n";
+    if (!result)
+    {
+        std::cerr
+            << "FAIL: rotation pipeline did not run\n";
         return false;
     }
 
     // 像素坐标转相机坐标仍为 (0.2, 0.1, 2.0)
-    if (!nearlyEqual(result.cameraPoint.X, 0.2) ||
-        !nearlyEqual(result.cameraPoint.Y, 0.1) ||
-        !nearlyEqual(result.cameraPoint.Z, 2.0)) {
+    if (!nearlyEqual(result->cameraPoint.X, 0.2) ||
+        !nearlyEqual(result->cameraPoint.Y, 0.1) ||
+        !nearlyEqual(result->cameraPoint.Z, 2.0)) {
         std::cerr << "FAIL: incorrect camera point before rotation\n";
         return false;
     }
@@ -255,9 +270,9 @@ bool testRotationTransform() {
         Y =  0.2 + 2.1 = 2.3
         Z =  2.0 + 3.0 = 5.0
     */
-    if (!nearlyEqual(result.robotPoint.X, 0.6) ||
-        !nearlyEqual(result.robotPoint.Y, 2.3) ||
-        !nearlyEqual(result.robotPoint.Z, 5.0)) {
+    if (!nearlyEqual(result->robotPoint.X, 0.6) ||
+        !nearlyEqual(result->robotPoint.Y, 2.3) ||
+        !nearlyEqual(result->robotPoint.Z, 5.0)) {
         std::cerr << "FAIL: incorrect rotated robot coordinates\n";
         return false;
     }
@@ -605,9 +620,7 @@ bool testNonFiniteCameraConfig()
         {1, 0.90, 720.0, 400.0, false}
     };
 
-    ValidTarget result{};
-
-    if (vision.run(targets, result))
+    if (vision.run(targets))
     {
         std::cerr
             << "FAIL: run succeeded with infinite camera config\n";

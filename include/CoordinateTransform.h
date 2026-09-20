@@ -2,7 +2,9 @@
 #include <optional>
 #include "VisionTypes.h"
 
-namespace CoordinateTransform {
+namespace CoordinateTransform
+{
+    [[nodiscard]]
     std::optional<CameraPoint> targetToCamera(
         const Target& target,
         const CameraConfig& config);
@@ -28,6 +30,7 @@ namespace CoordinateTransform {
         const CameraPoint& b,
         double EPS);
 
+    [[nodiscard]]
     bool isValidCameraConfig(
         const CameraConfig& config);
 }

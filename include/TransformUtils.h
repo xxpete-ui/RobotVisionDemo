@@ -21,12 +21,15 @@ namespace TransformUtils {
         const RotationMatrix& left,
         const RotationMatrix& right);
 
+    [[nodiscard]]
     bool isValidRotationMatrix(
         const RotationMatrix& rotation);
 
+    [[nodiscard]]
     std::optional<TransformMatrix> inverseTransform(
         const TransformMatrix& transform);
 
+    [[nodiscard]]
     bool isValidTransformMatrix(
         const TransformMatrix& transform);
 } // namespace TransformUtils

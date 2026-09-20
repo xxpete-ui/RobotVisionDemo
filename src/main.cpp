@@ -43,29 +43,30 @@ int main()
     CameraConfig cameraConfig = { Z, fx, fy, cx, cy };
    
     RobotVision vision(cameraConfig, T);
-    ValidTarget bestTarget{};
-    
-    if (vision.run(targets, bestTarget))
+    const std::optional<ValidTarget> bestTarget =
+        vision.run(targets);
+
+    if (bestTarget)
     {
         std::cout << "最佳目标 ID："
-            << bestTarget.target.id
+            << bestTarget->target.id
             << std::endl;
 
         std::cout << "最佳目标置信度："
-            << bestTarget.target.confidence
+            << bestTarget->target.confidence
             << std::endl;
 
         std::cout << "当前抓取状态："
-            << bestTarget.target.grabbed
+            << bestTarget->target.grabbed
             << std::endl;
 
         std::cout << "机器人抓取坐标："
-            << bestTarget.robotPoint.X << ", "
-            << bestTarget.robotPoint.Y << ", "
-            << bestTarget.robotPoint.Z
+            << bestTarget->robotPoint.X << ", "
+            << bestTarget->robotPoint.Y << ", "
+            << bestTarget->robotPoint.Z
             << std::endl;
 
-        bool marked = TargetProcessing::markTargetGrabbed(targets, bestTarget.target.id);
+        bool marked = TargetProcessing::markTargetGrabbed(targets, bestTarget->target.id);
         std::cout << "标记是否成功：" << marked << std::endl;
     }
     else {
