@@ -8,7 +8,7 @@ public:
 
     RobotVision(
         const CameraConfig& cameraConfig,
-        const double T[4][4]);
+        const TransformMatrix& transform);
 
     bool run(
         const std::vector<Target>& targets,
@@ -21,7 +21,7 @@ public:
 
 private:
     CameraConfig cameraConfig;
-    double T[4][4];
+    TransformMatrix T{};
 
     VisionStatus status;
     bool checkCameraConfig();

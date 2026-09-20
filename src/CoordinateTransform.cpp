@@ -42,7 +42,7 @@ namespace CoordinateTransform {
 
     RobotPoint cameraToRobot(
         const CameraPoint& cameraPoint,
-        const double T[4][4])
+        const TransformMatrix& transform)
     {
         double result[3] =
         {
@@ -63,11 +63,11 @@ namespace CoordinateTransform {
             for (int col = 0; col < 3; col++)
             {
                 result[row] +=
-                    T[row][col] *
+                    transform[row][col] *
                     point[col];
             }
 
-            result[row] += T[row][3];
+            result[row] += transform[row][3];
         }
 
         return
@@ -80,7 +80,7 @@ namespace CoordinateTransform {
 
     CameraPoint robotToCamera(
         const RobotPoint& robotPoint,
-        const double T_inverse[4][4])
+        const TransformMatrix& inverse)
     {
         double result[3] =
         {
@@ -101,12 +101,12 @@ namespace CoordinateTransform {
             for (int col = 0; col < 3; col++)
             {
                 result[row] +=
-                    T_inverse[row][col] *
+                    inverse[row][col] *
                     point[col];
             }
 
             result[row] +=
-                T_inverse[row][3];
+                inverse[row][3];
         }
 
         return

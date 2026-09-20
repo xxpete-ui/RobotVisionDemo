@@ -21,7 +21,7 @@ namespace TransformUtils {
         double tx,
         double ty,
         double tz,
-        double transform[4][4]);
+        TransformMatrix& transform);
 
     void multiplyMatrix3x3(
         const RotationMatrix& left,
@@ -32,7 +32,9 @@ namespace TransformUtils {
         const RotationMatrix& rotation);
 
     bool inverseTransform(
-        const double transform[4][4],
-        double inverse[4][4]);
+        const TransformMatrix& transform,
+        TransformMatrix& inverse);
 
+    bool isValidTransformMatrix(
+        const TransformMatrix& transform);
 } // namespace TransformUtils

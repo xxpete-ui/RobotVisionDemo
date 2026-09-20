@@ -9,14 +9,14 @@
 bool testTransform()
 {
     // 1. 有效 Transform
-    const double T_valid[4][4] = {
-        {0, -1, 0, 1.0},
-        {1,  0, 0, 0.5},
-        {0,  0, 1, 0.2},
-        {0,  0, 0, 1.0}
-    };
+    const TransformMatrix T_valid{ {
+    {{0, -1, 0, 1.0}},
+    {{1,  0, 0, 0.5}},
+    {{0,  0, 1, 0.2}},
+    {{0,  0, 0, 1.0}}
+} };
 
-    double T_inverse[4][4]{};
+    TransformMatrix T_inverse{};
 
     // 2. 求逆
     const bool success =
@@ -87,14 +87,14 @@ bool testTransform()
     }
 
     // 7. 无效 Transform
-    const double T_invalid[4][4] = {
-        {2, -1, 0, 1.0},
-        {1,  0, 0, 0.5},
-        {0,  0, 1, 0.2},
-        {0,  0, 0, 1.0}
-    };
+    const TransformMatrix T_invalid{ {
+    {{2, -1, 0, 1.0}},
+    {{1,  0, 0, 0.5}},
+    {{0,  0, 1, 0.2}},
+    {{0,  0, 0, 1.0}}
+} };
 
-    double invalidInverse[4][4]{};
+    TransformMatrix invalidInverse{};
 
     const bool invalidResult =
         TransformUtils::inverseTransform(
@@ -194,7 +194,7 @@ void printRotateRobotPoint(
     const CameraPoint& cameraPoint)
 {
     RotationMatrix rotation{};
-    double transform[4][4]{};
+    TransformMatrix transform{};
 
     TransformUtils::rotationZ(
         90.0,

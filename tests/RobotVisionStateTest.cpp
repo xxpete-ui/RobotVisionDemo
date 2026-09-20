@@ -19,19 +19,19 @@ namespace {
         360.0
     };
 
-    constexpr double kIdentityTransform[4][4] = {
-        {1, 0, 0, 0},
-        {0, 1, 0, 0},
-        {0, 0, 1, 0},
-        {0, 0, 0, 1}
-    };
+    constexpr TransformMatrix kIdentityTransform{ {
+        {{1, 0, 0, 0}},
+        {{0, 1, 0, 0}},
+        {{0, 0, 1, 0}},
+        {{0, 0, 0, 1}}
+    } };
 
-    constexpr double kInvalidTransform[4][4] = {
-        {0, 0, 0, 0},
-        {0, 0, 0, 0},
-        {0, 0, 0, 0},
-        {0, 0, 0, 1}
-    };
+    constexpr TransformMatrix kInvalidTransform{ {
+        {{0, 0, 0, 0}},
+        {{0, 0, 0, 0}},
+        {{0, 0, 0, 0}},
+        {{0, 0, 0, 1}}
+    } };
 
     bool nearlyEqual(double a, double b, double epsilon = 1e-9) {
         return std::abs(a - b) < epsilon;
@@ -170,12 +170,12 @@ bool testInvalidTransform() {
 
 
 bool testSuccessfulPipeline() {
-    const double transform[4][4] = {
-        {1, 0, 0, 0.7},
-        {0, 1, 0, 2.1},
-        {0, 0, 1, 3.0},
-        {0, 0, 0, 1.0}
-    };
+    const TransformMatrix transform = { {
+        {{1, 0, 0, 0.7}},
+        {{0, 1, 0, 2.1}},
+        {{0, 0, 1, 3.0}},
+        {{0, 0, 0, 1.0}}
+    } };
 
     RobotVision vision(kDefaultCamera, transform);
 
@@ -220,12 +220,12 @@ bool testSuccessfulPipeline() {
 bool testRotationTransform() {
 
     // 绕 Z 轴旋转 90°，然后平移 (0.7, 2.1, 3.0)
-    const double transform[4][4] = {
-        {0, -1, 0, 0.7},
-        {1,  0, 0, 2.1},
-        {0,  0, 1, 3.0},
-        {0,  0, 0, 1.0}
-    };
+    const TransformMatrix transform = { {
+        {{0, -1, 0, 0.7}},
+        {{1,  0, 0, 2.1}},
+        {{0,  0, 1, 3.0}},
+        {{0,  0, 0, 1.0}}
+    } };
 
     RobotVision vision(kDefaultCamera, transform);
 
@@ -272,14 +272,14 @@ bool testRotationTransform() {
 
 
 bool testInverseTransformRoundTrip() {
-    const double transform[4][4] = {
-        {0, -1, 0, 0.7},
-        {1,  0, 0, 2.1},
-        {0,  0, 1, 3.0},
-        {0,  0, 0, 1.0}
-    };
+    const TransformMatrix transform = { {
+        {{0, -1, 0, 0.7}},
+        {{1,  0, 0, 2.1}},
+        {{0,  0, 1, 3.0}},
+        {{0,  0, 0, 1.0}}
+    } };
 
-    double inverse[4][4]{};
+    TransformMatrix inverse{};
 
     if (!TransformUtils::inverseTransform(transform, inverse)) {
         std::cerr << "FAIL: could not invert valid transform\n";
@@ -307,7 +307,7 @@ bool testInverseTransformRoundTrip() {
 }
 
 bool testInvalidInverseTransform() {
-    double inverse[4][4]{};
+    TransformMatrix inverse{};
 
     if (TransformUtils::inverseTransform(kInvalidTransform, inverse)) {
         std::cerr << "FAIL: invalid transform was inversed successful\n";
@@ -416,6 +416,59 @@ bool testRotationMatrixMultiplication() {
 }
 
 
+bool testTransformMatrixGeneration() {
+    RotationMatrix rotation{};
+    TransformUtils::rotationZ(90.0, rotation);
+
+    TransformMatrix transform{};
+
+    TransformUtils::buildTransform(rotation, 0.7, 2.1, 3.0, transform);
+
+    const TransformMatrix excepeted{ {
+        {{0.0, -1.0, 0.0, 0.7}},
+        {{1.0, 0.0, 0.0, 2.1}},
+        {{0.0, 0.0, 1.0, 3.0}},
+        {{0.0, 0.0, 0.0, 1.0}}
+} };
+
+    for (std::size_t row = 0; row < transform.size(); ++row)
+    {
+        for (std::size_t col = 0; col < transform[row].size(); ++col)
+        {
+            if (!nearlyEqual(transform[row][col], excepeted[row][col]))
+            {
+                std::cerr << "FAIL: incorrect transform element at [" << row << "][" << col << "]\n";
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+
+bool testInvalidHomogeneousRow() {
+    const TransformMatrix transform{ {
+        {{1.0, 0.0, 0.0, 0.7}},
+        {{0.0, 1.0, 0.0, 2.1}},
+        {{0.0, 0.0, 1.0, 3.0}},
+        {{0.0, 0.0, 0.0, 2.0}}
+} };
+
+    if (TransformUtils::isValidTransformMatrix(transform)) {
+        std::cerr << "FAIL: invalid homogeneous row was accepted\n";
+        return false;
+    }
+
+    TransformMatrix inverse{};
+
+    if (TransformUtils::inverseTransform(transform, inverse)) {
+        std::cerr << "FAIL: inverted transform with invalid homogeneous row\n";
+        return false;
+    }
+
+    return true;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -436,7 +489,9 @@ int main(int argc, char* argv[])
         {"invalid-inverse", testInvalidInverseTransform},
         {"invalid-projection", testInvalidProjectionParameters},
         {"rotation-matrix", testRotationMatrixGeneration},
-        {"matrix-multiply", testRotationMatrixMultiplication}
+        {"matrix-multiply", testRotationMatrixMultiplication},
+        {"transform-matrix", testTransformMatrixGeneration},
+        {"invalid-homogeneous-row", testInvalidHomogeneousRow}
     };
 
     if (argc != 2) {

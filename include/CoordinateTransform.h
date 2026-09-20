@@ -14,12 +14,11 @@ namespace CoordinateTransform {
 
     RobotPoint cameraToRobot(
         const CameraPoint& cameraPoint,
-        const double T[4][4]);
-
+        const TransformMatrix& transform);
 
     CameraPoint robotToCamera(
         const RobotPoint& robotPoint,
-        const double T_inverse[4][4]);
+        const TransformMatrix& inverse);
 
 
     Point2D restorePoint(

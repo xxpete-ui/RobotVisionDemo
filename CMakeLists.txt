@@ -106,6 +106,17 @@ add_vision_test(
     transform
 )
 
+add_vision_test(
+    testTransformMatrixGeneration
+    transform-matrix
+    transform
+)
+
+add_vision_test(
+    testInvalidHomogeneousRow
+    invalid-homogeneous-row
+    validation
+)
 
 # Windows 下运行时自动复制 OpenCV Debug DLL
 if (WIN32 AND TARGET opencv_world)

@@ -34,13 +34,12 @@ int main()
     double cx = 640.0;
     double cy = 360.0;
 
-    double T[4][4] =
-    {
-        {1, 0, 0, 0.7},
-        {0, 1, 0, 2.1},
-        {0, 0, 1, 3.0},
-        {0, 0, 0, 1.0}
-    };
+    TransformMatrix T{ {
+    {{1, 0, 0, 0.7}},
+    {{0, 1, 0, 2.1}},
+    {{0, 0, 1, 3.0}},
+    {{0, 0, 0, 1.0}}
+} };
     CameraConfig cameraConfig = { Z, fx, fy, cx, cy };
    
     RobotVision vision(cameraConfig, T);

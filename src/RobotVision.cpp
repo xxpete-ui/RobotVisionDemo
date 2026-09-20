@@ -85,14 +85,14 @@ bool RobotVision::runVisionPipeline(
 
 RobotVision::RobotVision(
     const CameraConfig& config,
-    const double T[4][4])
+    const TransformMatrix& transform)
     : cameraConfig(config),
       status(VisionStatus::OK)
 
 {
     for (int row = 0; row < 4; row++) {
         for (int col = 0; col < 4; col++) {
-            this->T[row][col] = T[row][col];
+            this->T[row][col] = transform[row][col];
         }
     }
 
@@ -123,24 +123,9 @@ bool RobotVision::checkCameraConfig() {
     return cameraConfig.Z > 0 && cameraConfig.fx > 0 && cameraConfig.fy > 0;
 }
 
-bool RobotVision::checkTransform() {
-
-    double EPS = 1e-6;
-    if (fabs(T[3][0]) < EPS &&
-        fabs(T[3][1]) < EPS &&
-        fabs(T[3][2]) < EPS &&
-        fabs(T[3][3] - 1.0)  < EPS) {
-        RotationMatrix rotation{};
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 3; col++) {
-                rotation[row][col] = T[row][col];
-            }
-        }
-        return TransformUtils::isValidRotationMatrix(rotation);
-    }
-    else {
-        return false;
-    }
+bool RobotVision::checkTransform()
+{
+    return TransformUtils::isValidTransformMatrix(T);
 }
 
 VisionStatus RobotVision::getStatus() const

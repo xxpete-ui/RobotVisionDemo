@@ -1,5 +1,5 @@
 ﻿#include "TransformUtils.h"
-
+#include <cstddef>
 #include <cmath>
 
 namespace TransformUtils {
@@ -98,42 +98,46 @@ namespace TransformUtils {
 
 
     void buildTransform(
-        const RotationMatrix& R,
+        const RotationMatrix& rotation, //R
         double tx,
         double ty,
         double tz,
-        double T[4][4])
+        TransformMatrix& transform)  //T
     {
         for (int row = 0; row < 3; ++row)
         {
             for (int col = 0; col < 3; ++col)
             {
-                T[row][col] = R[row][col];
+                transform[row][col] = rotation[row][col];
             }
         }
 
-        T[0][3] = tx;
-        T[1][3] = ty;
-        T[2][3] = tz;
+        transform[0][3] = tx;
+        transform[1][3] = ty;
+        transform[2][3] = tz;
 
-        T[3][0] = 0.0;
-        T[3][1] = 0.0;
-        T[3][2] = 0.0;
-        T[3][3] = 1.0;
+        transform[3][0] = 0.0;
+        transform[3][1] = 0.0;
+        transform[3][2] = 0.0;
+        transform[3][3] = 1.0;
     }
 
 
     bool inverseTransform(
-        const double T[4][4],
-        double T_inverse[4][4])
+        const TransformMatrix& transform,
+        TransformMatrix& inverse)
     {
+        if (!isValidTransformMatrix(transform)) {
+            return false;
+        }
+
         RotationMatrix R{};
 
         for (int row = 0; row < 3; ++row)
         {
             for (int col = 0; col < 3; ++col)
             {
-                R[row][col] = T[row][col];
+                R[row][col] = transform[row][col];
             }
         }
 
@@ -147,26 +151,26 @@ namespace TransformUtils {
         {
             for (int col = 0; col < 3; ++col)
             {
-                T_inverse[row][col] = R[col][row];
+                inverse[row][col] = R[col][row];
             }
         }
 
         // Inverse translation: -R^T * t
         for (int row = 0; row < 3; ++row)
         {
-            T_inverse[row][3] = 0.0;
+            inverse[row][3] = 0.0;
 
             for (int col = 0; col < 3; ++col)
             {
-                T_inverse[row][3] -=
-                    T_inverse[row][col] * T[col][3];
+                inverse[row][3] -=
+                    inverse[row][col] * transform[col][3];
             }
         }
 
-        T_inverse[3][0] = 0.0;
-        T_inverse[3][1] = 0.0;
-        T_inverse[3][2] = 0.0;
-        T_inverse[3][3] = 1.0;
+        inverse[3][0] = 0.0;
+        inverse[3][1] = 0.0;
+        inverse[3][2] = 0.0;
+        inverse[3][3] = 1.0;
 
         return true;
     }
@@ -215,4 +219,31 @@ namespace TransformUtils {
         return std::abs(determinant - 1.0) <= epsilon;
     }
 
+    bool isValidTransformMatrix(
+        const TransformMatrix& transform)
+    {
+        constexpr double EPS = 1e-6;
+
+        if (std::fabs(transform[3][0]) >= EPS ||
+            std::fabs(transform[3][1]) >= EPS ||
+            std::fabs(transform[3][2]) >= EPS ||
+            std::fabs(transform[3][3] - 1.0) >= EPS)
+        {
+            return false;
+        }
+
+        RotationMatrix rotation{};
+
+        for (std::size_t row = 0; row < rotation.size(); ++row)
+        {
+            for (std::size_t col = 0;
+                col < rotation[row].size();
+                ++col)
+            {
+                rotation[row][col] = transform[row][col];
+            }
+        }
+
+        return isValidRotationMatrix(rotation);
+    }
 } // namespace TransformUtils
