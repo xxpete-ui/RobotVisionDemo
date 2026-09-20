@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <limits>
 
 
 // namespace： 匿名，这些名字只会在当前的.cpp文件中生效，不会污染项目其他源文件
@@ -322,14 +323,18 @@ bool testInvalidProjectionParameters()
         false
     };
 
-    const std::optional<CameraPoint> converted =
+    const CameraConfig config{
+    2.0,
+    0.0,
+    800.0,
+    640.0,
+    360.0
+    };
+
+    const auto converted =
         CoordinateTransform::targetToCamera(
             target,
-            2.0,
-            0.0,
-            800.0,
-            640.0,
-            360.0);
+            config);
 
     if (converted) {
         std::cerr << "FAIL: targetToCamera accepted fx = 0\n";
@@ -460,8 +465,18 @@ bool testValidProjectionParameters() {
         false
     };
 
-    const std::optional<CameraPoint> cameraPoint =
-        CoordinateTransform::targetToCamera(target, 2.0, 800.0, 800.0, 640.0, 360.0);
+    const CameraConfig config{
+    2.0,
+    800.0,
+    800.0,
+    640.0,
+    360.0
+    };
+
+    const auto cameraPoint =
+        CoordinateTransform::targetToCamera(
+            target,
+            config);
 
     if (!cameraPoint) {
         std::cerr << "FAIL: valid peojection returnen no value\n";
@@ -473,6 +488,137 @@ bool testValidProjectionParameters() {
         !nearlyEqual(cameraPoint->Z, 2.0))
     {
         std::cerr << "FAIL: valid projection returned incorrect coordonates\n";
+        return false;
+    }
+
+    return true;
+}
+
+
+bool testNonFiniteProjectionParameters()
+{
+    const Target validTarget{
+        1,
+        0.90,
+        720.0,
+        400.0,
+        false
+    };
+    // 获取double类型的 +∞ 和 NaN
+    const double infinity =
+        std::numeric_limits<double>::infinity();
+
+    const double notANumber =
+        std::numeric_limits<double>::quiet_NaN();
+
+    const CameraConfig infiniteConfig{
+        2.0,
+        infinity,
+        800.0,
+        640.0,
+        360.0
+    };
+
+    if (CoordinateTransform::targetToCamera(
+        validTarget,
+        infiniteConfig))
+    {
+        std::cerr
+            << "FAIL: infinite focal length was accepted\n";
+        return false;
+    }
+
+    const Target invalidTarget{
+        2,
+        0.90,
+        notANumber, // target.x = NaN 非法像素坐标
+        400.0,
+        false
+    };
+
+    if (CoordinateTransform::targetToCamera(
+        invalidTarget,
+        kDefaultCamera))
+    {
+        std::cerr
+            << "FAIL: NaN target coordinate was accepted\n";
+        return false;
+    }
+
+    return true;
+}
+
+
+bool testNonFiniteTransform()
+{
+    const double infinity =
+        std::numeric_limits<double>::infinity();
+
+    const TransformMatrix transform{ {
+        {{1.0, 0.0, 0.0, infinity}},
+        {{0.0, 1.0, 0.0, 0.0}},
+        {{0.0, 0.0, 1.0, 0.0}},
+        {{0.0, 0.0, 0.0, 1.0}}
+    } };
+
+    if (TransformUtils::isValidTransformMatrix(transform))
+    {
+        std::cerr
+            << "FAIL: transform with infinite translation was accepted\n";
+        return false;
+    }
+
+    if (TransformUtils::inverseTransform(transform))
+    {
+        std::cerr
+            << "FAIL: transform with infinite translation was inverted\n";
+        return false;
+    }
+
+    return true;
+}
+
+
+bool testNonFiniteCameraConfig()
+{
+    const CameraConfig invalidCamera{
+        2.0,
+        std::numeric_limits<double>::infinity(),
+        800.0,
+        640.0,
+        360.0
+    };
+
+    RobotVision vision(
+        invalidCamera,
+        kIdentityTransform);
+
+    if (vision.getStatus() !=
+        VisionStatus::InvalidCameraConfig)
+    {
+        std::cerr
+            << "FAIL: infinite camera config was accepted\n";
+        return false;
+    }
+
+    const std::vector<Target> targets{
+        {1, 0.90, 720.0, 400.0, false}
+    };
+
+    ValidTarget result{};
+
+    if (vision.run(targets, result))
+    {
+        std::cerr
+            << "FAIL: run succeeded with infinite camera config\n";
+        return false;
+    }
+
+    if (vision.getStatus() !=
+        VisionStatus::InvalidCameraConfig)
+    {
+        std::cerr
+            << "FAIL: invalid camera status was not preserved\n";
         return false;
     }
 
@@ -502,7 +648,10 @@ int main(int argc, char* argv[])
         {"matrix-multiply", testRotationMatrixMultiplication},
         {"transform-matrix", testTransformMatrixGeneration},
         {"invalid-homogeneous-row", testInvalidHomogeneousRow},
-        {"valid-projection", testValidProjectionParameters}
+        {"valid-projection", testValidProjectionParameters},
+        {"non-finite-projection", testNonFiniteProjectionParameters},
+        {"non-finite-transform", testNonFiniteTransform},
+        {"non-finite-camera", testNonFiniteCameraConfig}
     };
 
     if (argc != 2) {

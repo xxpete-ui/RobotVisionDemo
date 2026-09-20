@@ -6,30 +6,30 @@ namespace CoordinateTransform {
 
     std::optional<CameraPoint> targetToCamera(
         const Target& target,
-        double Z,
-        double fx,
-        double fy,
-        double cx,
-        double cy)
+        const CameraConfig& config)
     {
-        if (Z <= 0.0 ||
-            fx <= 0.0 ||
-            fy <= 0.0)
+        if (!isValidCameraConfig(config) ||
+            !std::isfinite(target.x) ||
+            !std::isfinite(target.y))
         {
-            Logger::error("相机参数错误");
+            Logger::error("相机参数或目标坐标错误");
             return std::nullopt;
         }
 
         const double X =
-            (target.x - cx) * Z / fx;
+            (target.x - config.cx) *
+            config.Z /
+            config.fx;
 
         const double Y =
-            (target.y - cy) * Z / fy;
+            (target.y - config.cy) *
+            config.Z /
+            config.fy;
 
         return CameraPoint{
             X,
             Y,
-            Z
+            config.Z
         };
     }
 
@@ -136,5 +136,19 @@ namespace CoordinateTransform {
             std::abs(a.X - b.X) < EPS &&
             std::abs(a.Y - b.Y) < EPS &&
             std::abs(a.Z - b.Z) < EPS;
+    }
+
+    bool isValidCameraConfig(
+        const CameraConfig& config)
+    {
+        return
+            std::isfinite(config.Z) &&
+            std::isfinite(config.fx) &&
+            std::isfinite(config.fy) &&
+            std::isfinite(config.cx) &&
+            std::isfinite(config.cy) &&
+            config.Z > 0.0 &&
+            config.fx > 0.0 &&
+            config.fy > 0.0;
     }
 }

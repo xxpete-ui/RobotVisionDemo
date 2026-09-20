@@ -233,6 +233,17 @@ namespace TransformUtils {
     bool isValidTransformMatrix(
         const TransformMatrix& transform)
     {
+        for (const auto& row : transform)
+        {
+            for (const double value : row)
+            {
+                if (!std::isfinite(value))
+                {
+                    return false;
+                }
+            }
+        }
+
         constexpr double EPS = 1e-6;
 
         if (std::fabs(transform[3][0]) >= EPS ||

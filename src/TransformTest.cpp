@@ -257,11 +257,7 @@ bool demoLetterboxToCamera(
     const std::optional<CameraPoint> cameraPoint =
         CoordinateTransform::targetToCamera(
             detectedTarget,
-            config.Z,
-            config.fx,
-            config.fy,
-            config.cx,
-            config.cy);
+            config);
 
     if (!cameraPoint)
     {

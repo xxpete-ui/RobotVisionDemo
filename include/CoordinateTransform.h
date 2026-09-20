@@ -5,11 +5,7 @@
 namespace CoordinateTransform {
     std::optional<CameraPoint> targetToCamera(
         const Target& target,
-        double Z,
-        double fx,
-        double fy,
-        double cx,
-        double cy);
+        const CameraConfig& config);
 
     RobotPoint cameraToRobot(
         const CameraPoint& cameraPoint,
@@ -31,4 +27,7 @@ namespace CoordinateTransform {
         const CameraPoint& a,
         const CameraPoint& b,
         double EPS);
+
+    bool isValidCameraConfig(
+        const CameraConfig& config);
 }

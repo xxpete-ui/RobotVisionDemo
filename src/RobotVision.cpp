@@ -4,7 +4,6 @@
 #include "TargetProcessing.h"
 #include "CoordinateTransform.h"
 #include "TransformUtils.h"
-#include <cmath>
 #include <iostream>
 
 
@@ -44,11 +43,7 @@ std::vector<ValidTarget> RobotVision::processTargets(
         const std::optional<CameraPoint> cameraPoint =
             CoordinateTransform::targetToCamera(
                 target,
-                cameraConfig.Z,
-                cameraConfig.fx,
-                cameraConfig.fy,
-                cameraConfig.cx,
-                cameraConfig.cy);
+                cameraConfig);
 
         if (!cameraPoint)
         {
@@ -129,8 +124,17 @@ bool RobotVision::run(
     return runVisionPipeline(targets, bestTarget);
 }
 
-bool RobotVision::checkCameraConfig() {
-    return cameraConfig.Z > 0 && cameraConfig.fx > 0 && cameraConfig.fy > 0;
+bool RobotVision::checkCameraConfig()
+{
+    return
+        std::isfinite(cameraConfig.Z) &&
+        std::isfinite(cameraConfig.fx) &&
+        std::isfinite(cameraConfig.fy) &&
+        std::isfinite(cameraConfig.cx) &&
+        std::isfinite(cameraConfig.cy) &&
+        cameraConfig.Z > 0.0 &&
+        cameraConfig.fx > 0.0 &&
+        cameraConfig.fy > 0.0;
 }
 
 bool RobotVision::checkTransform()
