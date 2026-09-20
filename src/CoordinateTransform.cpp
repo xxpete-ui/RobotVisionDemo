@@ -4,40 +4,33 @@
 
 namespace CoordinateTransform {
 
-    bool targetToCamera(
+    std::optional<CameraPoint> targetToCamera(
         const Target& target,
         double Z,
         double fx,
         double fy,
         double cx,
-        double cy,
-        CameraPoint& result)
+        double cy)
     {
-        double u = target.x;
-        double v = target.y;
-
-        if (Z <= 0 ||
-            fx <= 0 ||
-            fy <= 0)
+        if (Z <= 0.0 ||
+            fx <= 0.0 ||
+            fy <= 0.0)
         {
             Logger::error("相机参数错误");
-            return false;
+            return std::nullopt;
         }
 
-        double X =
-            (u - cx) * Z / fx;
+        const double X =
+            (target.x - cx) * Z / fx;
 
-        double Y =
-            (v - cy) * Z / fy;
+        const double Y =
+            (target.y - cy) * Z / fy;
 
-        result =
-        {
+        return CameraPoint{
             X,
             Y,
             Z
         };
-
-        return true;
     }
 
     RobotPoint cameraToRobot(

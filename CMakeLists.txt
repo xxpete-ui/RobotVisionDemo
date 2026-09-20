@@ -118,6 +118,12 @@ add_vision_test(
     validation
 )
 
+add_vision_test(
+    testValidProjectionParameters
+    valid-projection
+    transform
+)
+
 # Windows 下运行时自动复制 OpenCV Debug DLL
 if (WIN32 AND TARGET opencv_world)
     add_custom_command(

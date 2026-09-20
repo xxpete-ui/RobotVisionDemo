@@ -29,32 +29,42 @@ const char* RobotVision::statusToString(VisionStatus status) {
 
 
 std::vector<ValidTarget> RobotVision::processTargets(
-    const std::vector<Target>& targets) {
+    const std::vector<Target>& targets)
+{
     std::vector<ValidTarget> validTargets;
+    validTargets.reserve(targets.size());
     // 相机坐标{X, Y, Z}
     
-    for (const auto& target : targets) {
-        if (target.grabbed) {
+    for (const auto& target : targets)
+    {
+        if (target.grabbed)
+        {
             continue;
         }
-        CameraPoint cameraPoint;
-        bool cameraPoint_result = CoordinateTransform::targetToCamera(target,
-            cameraConfig.Z,
-            cameraConfig.fx,
-            cameraConfig.fy,
-            cameraConfig.cx,
-            cameraConfig.cy,
-            cameraPoint);
-        if (!cameraPoint_result) {
+        const std::optional<CameraPoint> cameraPoint =
+            CoordinateTransform::targetToCamera(
+                target,
+                cameraConfig.Z,
+                cameraConfig.fx,
+                cameraConfig.fy,
+                cameraConfig.cx,
+                cameraConfig.cy);
+
+        if (!cameraPoint)
+        {
             Logger::warn("无效目标，跳过");
             continue;
         }
-        RobotPoint robotPoint = CoordinateTransform::cameraToRobot(cameraPoint, T);
-        ValidTarget validTarget{};
-        validTarget.target = target;
-        validTarget.cameraPoint = cameraPoint;
-        validTarget.robotPoint = robotPoint;
-        validTargets.push_back(validTarget);
+
+        const RobotPoint robotPoint =
+            CoordinateTransform::cameraToRobot(
+                *cameraPoint,
+                T);
+        validTargets.push_back({
+            target,
+            *cameraPoint,
+            robotPoint
+            });
     }
     return validTargets;
 

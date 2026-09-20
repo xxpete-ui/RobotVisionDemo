@@ -39,7 +39,6 @@ namespace {
 
 } // namespace
 
-
 bool testRecovery() {
     RobotVision vision(kDefaultCamera, kIdentityTransform);
     std::vector<Target> targets{ {3, 0.80, 720, 400, true} };
@@ -61,7 +60,6 @@ bool testRecovery() {
 
     return true;
 }
-
 
 bool testGrabbedTargetFiltering() {
 
@@ -96,7 +94,6 @@ bool testGrabbedTargetFiltering() {
 
     return true;
 }
-
 
 bool testInvalidCameraConfig() {
     //fx = 0,像素转相机坐标时就会发生除0，因此属于无效配置
@@ -136,7 +133,6 @@ bool testInvalidCameraConfig() {
     return true;
 }
 
-
 bool testInvalidTransform() {
 
     RobotVision vision(kDefaultCamera, kInvalidTransform);
@@ -167,7 +163,6 @@ bool testInvalidTransform() {
     }
     return true;
 }
-
 
 bool testSuccessfulPipeline() {
     const TransformMatrix transform = { {
@@ -215,7 +210,6 @@ bool testSuccessfulPipeline() {
 
     return true;
 }
-
 
 bool testRotationTransform() {
 
@@ -270,7 +264,6 @@ bool testRotationTransform() {
     return true;
 }
 
-
 bool testInverseTransformRoundTrip() {
     const TransformMatrix transform = { {
         {{0, -1, 0, 0.7}},
@@ -279,9 +272,11 @@ bool testInverseTransformRoundTrip() {
         {{0,  0, 0, 1.0}}
     } };
 
-    TransformMatrix inverse{};
+    const std::optional<TransformMatrix> inverse =
+        TransformUtils::inverseTransform(transform);
 
-    if (!TransformUtils::inverseTransform(transform, inverse)) {
+    if (!inverse)
+    {
         std::cerr << "FAIL: could not invert valid transform\n";
         return false;
     }
@@ -294,7 +289,7 @@ bool testInverseTransformRoundTrip() {
 
     const RobotPoint robotPoint = CoordinateTransform::cameraToRobot(originalCamera, transform);
 
-    const CameraPoint restoredCamera = CoordinateTransform::robotToCamera(robotPoint, inverse);
+    const CameraPoint restoredCamera = CoordinateTransform::robotToCamera(robotPoint, *inverse);
 
     if (!nearlyEqual(restoredCamera.X, originalCamera.X) ||
         !nearlyEqual(restoredCamera.Y, originalCamera.Y) ||
@@ -309,13 +304,13 @@ bool testInverseTransformRoundTrip() {
 bool testInvalidInverseTransform() {
     TransformMatrix inverse{};
 
-    if (TransformUtils::inverseTransform(kInvalidTransform, inverse)) {
-        std::cerr << "FAIL: invalid transform was inversed successful\n";
+    if (TransformUtils::inverseTransform(kInvalidTransform))
+    {
+        std::cerr << "FAIL: invalid transform was inversed successfully\n";
         return false;
     }
     return true;
 }
-
 
 bool testInvalidProjectionParameters()
 {
@@ -327,17 +322,14 @@ bool testInvalidProjectionParameters()
         false
     };
 
-    CameraPoint result{};
-
-    const bool converted = CoordinateTransform::targetToCamera(
-        target,
-        2.0,
-        0.0,
-        800.0,
-        640.0,
-        360.0,
-        result
-    );
+    const std::optional<CameraPoint> converted =
+        CoordinateTransform::targetToCamera(
+            target,
+            2.0,
+            0.0,
+            800.0,
+            640.0,
+            360.0);
 
     if (converted) {
         std::cerr << "FAIL: targetToCamera accepted fx = 0\n";
@@ -348,14 +340,8 @@ bool testInvalidProjectionParameters()
 
 }
 
-
 bool testRotationMatrixGeneration() {
-    RotationMatrix rotation{};
-
-    TransformUtils::rotationZ(
-        90.0,
-        rotation
-    );
+    const RotationMatrix rotation = TransformUtils::rotationZ(90.0);
     /*
         理论上的 Rz(90°)：
 
@@ -389,7 +375,6 @@ bool testRotationMatrixGeneration() {
     return true;
 }
 
-
 bool testRotationMatrixMultiplication() {
     const RotationMatrix identity{ {
         {{1.0, 0.0, 0.0}},
@@ -397,12 +382,9 @@ bool testRotationMatrixMultiplication() {
         {{0.0, 0.0, 1.0}}
     } };
 
-    RotationMatrix rotation{};
-    TransformUtils::rotationZ(90.0, rotation);
+    const RotationMatrix rotation = TransformUtils::rotationZ(90.0);
 
-    RotationMatrix result{};
-
-    TransformUtils::multiplyMatrix3x3(identity, rotation, result);
+    const RotationMatrix result = TransformUtils::multiplyMatrix3x3(identity, rotation);
     //I × R应该等于R
     for (std::size_t row = 0; row < result.size(); row++) {
         for (std::size_t col = 0; col < result[row].size(); ++col) {
@@ -415,16 +397,12 @@ bool testRotationMatrixMultiplication() {
     return true;
 }
 
-
 bool testTransformMatrixGeneration() {
-    RotationMatrix rotation{};
-    TransformUtils::rotationZ(90.0, rotation);
+    const RotationMatrix rotation = TransformUtils::rotationZ(90.0);
 
-    TransformMatrix transform{};
+    TransformMatrix transform = TransformUtils::buildTransform(rotation, 0.7, 2.1, 3.0);
 
-    TransformUtils::buildTransform(rotation, 0.7, 2.1, 3.0, transform);
-
-    const TransformMatrix excepeted{ {
+    const TransformMatrix expected{ {
         {{0.0, -1.0, 0.0, 0.7}},
         {{1.0, 0.0, 0.0, 2.1}},
         {{0.0, 0.0, 1.0, 3.0}},
@@ -435,7 +413,7 @@ bool testTransformMatrixGeneration() {
     {
         for (std::size_t col = 0; col < transform[row].size(); ++col)
         {
-            if (!nearlyEqual(transform[row][col], excepeted[row][col]))
+            if (!nearlyEqual(transform[row][col], expected[row][col]))
             {
                 std::cerr << "FAIL: incorrect transform element at [" << row << "][" << col << "]\n";
                 return false;
@@ -461,8 +439,40 @@ bool testInvalidHomogeneousRow() {
 
     TransformMatrix inverse{};
 
-    if (TransformUtils::inverseTransform(transform, inverse)) {
-        std::cerr << "FAIL: inverted transform with invalid homogeneous row\n";
+    if (TransformUtils::inverseTransform(transform))
+    {
+        std::cerr
+            << "FAIL: inverted transform with invalid homogeneous row\n";
+        return false;
+    }
+
+    return true;
+}
+
+
+bool testValidProjectionParameters() {
+    const Target target
+    {
+        1,
+        0.90,
+        720.0,
+        400.0,
+        false
+    };
+
+    const std::optional<CameraPoint> cameraPoint =
+        CoordinateTransform::targetToCamera(target, 2.0, 800.0, 800.0, 640.0, 360.0);
+
+    if (!cameraPoint) {
+        std::cerr << "FAIL: valid peojection returnen no value\n";
+        return false;
+    }
+
+    if (!nearlyEqual(cameraPoint->X, 0.2) ||
+        !nearlyEqual(cameraPoint->Y, 0.1) ||
+        !nearlyEqual(cameraPoint->Z, 2.0))
+    {
+        std::cerr << "FAIL: valid projection returned incorrect coordonates\n";
         return false;
     }
 
@@ -491,7 +501,8 @@ int main(int argc, char* argv[])
         {"rotation-matrix", testRotationMatrixGeneration},
         {"matrix-multiply", testRotationMatrixMultiplication},
         {"transform-matrix", testTransformMatrixGeneration},
-        {"invalid-homogeneous-row", testInvalidHomogeneousRow}
+        {"invalid-homogeneous-row", testInvalidHomogeneousRow},
+        {"valid-projection", testValidProjectionParameters}
     };
 
     if (argc != 2) {

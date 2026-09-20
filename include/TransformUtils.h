@@ -1,39 +1,31 @@
 #pragma once
 #include <array>
+#include <optional>
 #include "VisionTypes.h"
 
 namespace TransformUtils {
 
-    void rotationX(
-        double degree,
-        RotationMatrix& result);
+    RotationMatrix rotationX(double degree);
 
-    void rotationY(
-        double degree,
-        RotationMatrix& result);
+    RotationMatrix rotationY(double degree);
 
-    void rotationZ(
-        double degree,
-        RotationMatrix& result);
+    RotationMatrix rotationZ(double degree);
 
-    void buildTransform(
+    TransformMatrix buildTransform(
         const RotationMatrix& rotation,
         double tx,
         double ty,
-        double tz,
-        TransformMatrix& transform);
+        double tz);
 
-    void multiplyMatrix3x3(
+    RotationMatrix multiplyMatrix3x3(
         const RotationMatrix& left,
-        const RotationMatrix& right,
-        RotationMatrix& result);
+        const RotationMatrix& right);
 
     bool isValidRotationMatrix(
         const RotationMatrix& rotation);
 
-    bool inverseTransform(
-        const TransformMatrix& transform,
-        TransformMatrix& inverse);
+    std::optional<TransformMatrix> inverseTransform(
+        const TransformMatrix& transform);
 
     bool isValidTransformMatrix(
         const TransformMatrix& transform);

@@ -1,16 +1,15 @@
 #pragma once
-
+#include <optional>
 #include "VisionTypes.h"
 
 namespace CoordinateTransform {
-    bool targetToCamera(
+    std::optional<CameraPoint> targetToCamera(
         const Target& target,
         double Z,
         double fx,
         double fy,
         double cx,
-        double cy,
-        CameraPoint& result);
+        double cy);
 
     RobotPoint cameraToRobot(
         const CameraPoint& cameraPoint,

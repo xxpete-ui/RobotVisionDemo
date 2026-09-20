@@ -19,12 +19,10 @@ bool testTransform()
     TransformMatrix T_inverse{};
 
     // 2. 求逆
-    const bool success =
-        TransformUtils::inverseTransform(
-            T_valid,
-            T_inverse);
+    const std::optional<TransformMatrix> inverseResult =
+        TransformUtils::inverseTransform(T_valid);
 
-    if (!success)
+    if (!inverseResult)
     {
         std::cout
             << "Transform inverse failed"
@@ -64,7 +62,7 @@ bool testTransform()
     const CameraPoint back =
         CoordinateTransform::robotToCamera(
             robot,
-            T_inverse);
+            *inverseResult);
 
     std::cout
         << "Camera point back: "
@@ -94,12 +92,8 @@ bool testTransform()
     {{0,  0, 0, 1.0}}
 } };
 
-    TransformMatrix invalidInverse{};
-
-    const bool invalidResult =
-        TransformUtils::inverseTransform(
-            T_invalid,
-            invalidInverse);
+    const std::optional<TransformMatrix> invalidResult =
+        TransformUtils::inverseTransform(T_invalid);
 
     if (invalidResult)
     {
@@ -120,27 +114,22 @@ bool testTransform()
 
 void printRotationComposition()
 {
-    RotationMatrix Rx{};
-    RotationMatrix Ry{};
-    RotationMatrix Rz{};
+    const RotationMatrix Rx =
+        TransformUtils::rotationX(30.0);
 
-    TransformUtils::rotationX(30.0, Rx);
-    TransformUtils::rotationY(20.0, Ry);
-    TransformUtils::rotationZ(90.0, Rz);
+    const RotationMatrix Ry =
+        TransformUtils::rotationY(20.0);
 
-    RotationMatrix temp{};
-    RotationMatrix R_1{};
+    const RotationMatrix Rz =
+        TransformUtils::rotationZ(90.0);
 
-    // Rz × Ry × Rx
-    TransformUtils::multiplyMatrix3x3(
-        Ry,
-        Rx,
-        temp);
+    const RotationMatrix temp = TransformUtils::multiplyMatrix3x3(
+            Ry,
+            Rx);
 
-    TransformUtils::multiplyMatrix3x3(
-        Rz,
-        temp,
-        R_1);
+    const RotationMatrix R_1 = TransformUtils::multiplyMatrix3x3(
+            Rz,
+            temp);
 
     std::cout
         << "Rz × Ry × Rx："
@@ -158,19 +147,13 @@ void printRotationComposition()
         std::cout << std::endl;
     }
 
-    RotationMatrix temp2{};
-    RotationMatrix R_2{};
+    const RotationMatrix temp2 = TransformUtils::multiplyMatrix3x3(
+            Ry,
+            Rz);
 
-    // Rx × Ry × Rz
-    TransformUtils::multiplyMatrix3x3(
-        Ry,
-        Rz,
-        temp2);
-
-    TransformUtils::multiplyMatrix3x3(
-        Rx,
-        temp2,
-        R_2);
+    const RotationMatrix R_2 = TransformUtils::multiplyMatrix3x3(
+            Rx,
+            temp2);
 
     std::cout
         << "Rx × Ry × Rz："
@@ -193,19 +176,14 @@ void printRotationComposition()
 void printRotateRobotPoint(
     const CameraPoint& cameraPoint)
 {
-    RotationMatrix rotation{};
-    TransformMatrix transform{};
+    const RotationMatrix rotation =
+        TransformUtils::rotationZ(90.0);
 
-    TransformUtils::rotationZ(
-        90.0,
-        rotation);
-
-    TransformUtils::buildTransform(
+    TransformMatrix transform = TransformUtils::buildTransform(
         rotation,
         0.7,
         2.1,
-        3.0,
-        transform);
+        3.0);
 
     const RobotPoint robotResult =
         CoordinateTransform::cameraToRobot(
@@ -276,22 +254,21 @@ bool demoLetterboxToCamera(
         false
     };
 
-    CameraPoint cameraPointResult{};
-
-    const bool cameraSuccess =
+    const std::optional<CameraPoint> cameraPoint =
         CoordinateTransform::targetToCamera(
             detectedTarget,
             config.Z,
             config.fx,
             config.fy,
             config.cx,
-            config.cy,
-            cameraPointResult);
+            config.cy);
 
-    if (!cameraSuccess)
+    if (!cameraPoint)
     {
         return false;
     }
+
+    const CameraPoint cameraPointResult = *cameraPoint;
 
     std::cout
         << "================"

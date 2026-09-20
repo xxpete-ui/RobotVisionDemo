@@ -4,106 +4,116 @@
 
 namespace TransformUtils {
 
-    void rotationX(
-        double degree,
-        RotationMatrix& R)
+    RotationMatrix rotationX(double degree)
     {
+        RotationMatrix result{};
         const double rad =
             degree * 3.14159265358979323846 / 180.0;
 
         const double c = std::cos(rad);
         const double s = std::sin(rad);
 
-        R[0][0] = 1.0;
-        R[0][1] = 0.0;
-        R[0][2] = 0.0;
+        result[0][0] = 1.0;
+        result[0][1] = 0.0;
+        result[0][2] = 0.0;
 
-        R[1][0] = 0.0;
-        R[1][1] = c;
-        R[1][2] = -s;
+        result[1][0] = 0.0;
+        result[1][1] = c;
+        result[1][2] = -s;
 
-        R[2][0] = 0.0;
-        R[2][1] = s;
-        R[2][2] = c;
+        result[2][0] = 0.0;
+        result[2][1] = s;
+        result[2][2] = c;
+
+        return result;
     }
 
 
-    void rotationY(
-        double degree,
-        RotationMatrix& R)
+    RotationMatrix rotationY(double degree)
     {
+        RotationMatrix result{};
         const double rad =
             degree * 3.14159265358979323846 / 180.0;
 
         const double c = std::cos(rad);
         const double s = std::sin(rad);
 
-        R[0][0] = c;
-        R[0][1] = 0.0;
-        R[0][2] = s;
+        result[0][0] = c;
+        result[0][1] = 0.0;
+        result[0][2] = s;
 
-        R[1][0] = 0.0;
-        R[1][1] = 1.0;
-        R[1][2] = 0.0;
+        result[1][0] = 0.0;
+        result[1][1] = 1.0;
+        result[1][2] = 0.0;
 
-        R[2][0] = -s;
-        R[2][1] = 0.0;
-        R[2][2] = c;
+        result[2][0] = -s;
+        result[2][1] = 0.0;
+        result[2][2] = c;
+
+        return result;
     }
 
 
-    void rotationZ(
-        double degree,
-        RotationMatrix& R)
+    RotationMatrix rotationZ(double degree)
     {
+        RotationMatrix result{};
         const double rad =
             degree * 3.14159265358979323846 / 180.0;
 
         const double c = std::cos(rad);
         const double s = std::sin(rad);
 
-        R[0][0] = c;
-        R[0][1] = -s;
-        R[0][2] = 0.0;
+        result[0][0] = c;
+        result[0][1] = -s;
+        result[0][2] = 0.0;
 
-        R[1][0] = s;
-        R[1][1] = c;
-        R[1][2] = 0.0;
+        result[1][0] = s;
+        result[1][1] = c;
+        result[1][2] = 0.0;
 
-        R[2][0] = 0.0;
-        R[2][1] = 0.0;
-        R[2][2] = 1.0;
+        result[2][0] = 0.0;
+        result[2][1] = 0.0;
+        result[2][2] = 1.0;
+
+        return result;
     }
 
 
-    void multiplyMatrix3x3(
-        const RotationMatrix& A,
-        const RotationMatrix& B,
-        RotationMatrix& C)
+    RotationMatrix multiplyMatrix3x3(
+        const RotationMatrix& left,
+        const RotationMatrix& right)
     {
-        for (int row = 0; row < 3; ++row)
+        RotationMatrix result{};
+
+        for (std::size_t row = 0; row < result.size(); ++row)
         {
-            for (int col = 0; col < 3; ++col)
+            for (std::size_t col = 0;
+                col < result[row].size();
+                ++col)
             {
-                C[row][col] = 0.0;
-
-                for (int k = 0; k < 3; ++k)
+                for (std::size_t index = 0;
+                    index < left[row].size();
+                    ++index)
                 {
-                    C[row][col] +=
-                        A[row][k] * B[k][col];
+                    result[row][col] +=
+                        left[row][index] *
+                        right[index][col];
                 }
             }
         }
+
+        return result;
     }
 
 
-    void buildTransform(
+    TransformMatrix buildTransform(
         const RotationMatrix& rotation, //R
         double tx,
         double ty,
-        double tz,
-        TransformMatrix& transform)  //T
+        double tz)  //T
     {
+        TransformMatrix transform{};
+
         for (int row = 0; row < 3; ++row)
         {
             for (int col = 0; col < 3; ++col)
@@ -120,19 +130,19 @@ namespace TransformUtils {
         transform[3][1] = 0.0;
         transform[3][2] = 0.0;
         transform[3][3] = 1.0;
+
+        return transform;
     }
 
 
-    bool inverseTransform(
-        const TransformMatrix& transform,
-        TransformMatrix& inverse)
+    std::optional<TransformMatrix> inverseTransform(
+        const TransformMatrix& transform)
     {
         if (!isValidTransformMatrix(transform)) {
-            return false;
+            return std::nullopt;
         }
 
         RotationMatrix R{};
-
         for (int row = 0; row < 3; ++row)
         {
             for (int col = 0; col < 3; ++col)
@@ -143,9 +153,10 @@ namespace TransformUtils {
 
         if (!isValidRotationMatrix(R))
         {
-            return false;
+            return std::nullopt;
         }
 
+        TransformMatrix inverse{};
         // R^-1 = R^T
         for (int row = 0; row < 3; ++row)
         {
@@ -172,7 +183,7 @@ namespace TransformUtils {
         inverse[3][2] = 0.0;
         inverse[3][3] = 1.0;
 
-        return true;
+        return inverse;
     }
 
 
