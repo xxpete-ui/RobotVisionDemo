@@ -6,25 +6,6 @@
 #include <optional>
 
 
-const char* RobotVision::statusToString(VisionStatus status) {
-    switch (status) {
-        case VisionStatus::OK:
-            return "OK";
-
-        case VisionStatus::InvalidCameraConfig:
-            return "InvalidCameraConfig";
-
-        case VisionStatus::InvalidTransform:
-            return "InvalidTransform";
-
-        case VisionStatus::NoValidTarget:
-            return "NoValidTarget";
-
-        default:
-            return "Unknown";
-    }
-}
-
 
 std::vector<ValidTarget> RobotVision::processTargets(
     const std::vector<Target>& targets) const

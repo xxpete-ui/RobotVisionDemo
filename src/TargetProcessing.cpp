@@ -1,56 +1,56 @@
 #include "TargetProcessing.h"
 
-
 namespace TargetProcessing
 {
     const Target* selectBestTarget(
         const std::vector<Target>& targets)
     {
-        if (targets.empty())
-        {
-            return nullptr;
-        }
-
-        const Target* best =
-            &targets[0];
+        const Target* bestTarget = nullptr;
 
         for (const auto& target : targets)
         {
-            if (target.confidence >
-                best->confidence)
+            if (bestTarget == nullptr ||
+                target.confidence >
+                bestTarget->confidence)
             {
-                best = &target;
+                bestTarget = &target;
             }
         }
 
-        return best;
+        return bestTarget;
     }
-
-
 
     const ValidTarget* selectBestValidTarget(
-        const std::vector<ValidTarget>& targets
-    ) {
-        if (targets.empty()) {
-            return nullptr;
-        }
+        const std::vector<ValidTarget>& targets)
+    {
+        const ValidTarget* bestTarget = nullptr;
 
-        const ValidTarget* best = &targets[0];
-        for (const auto& target : targets) {
-            if (target.target.confidence > best->target.confidence) {
-                best = &target;
+        for (const auto& target : targets)
+        {
+            if (bestTarget == nullptr ||
+                target.target.confidence >
+                bestTarget->target.confidence)
+            {
+                bestTarget = &target;
             }
         }
-        return best;
+
+        return bestTarget;
     }
 
-    bool markTargetGrabbed(std::vector<Target>& targets, int targetId) {
-        for (auto& target : targets) {
-            if (target.id == targetId) {
+    bool markTargetGrabbed(
+        std::vector<Target>& targets,
+        int targetId)
+    {
+        for (auto& target : targets)
+        {
+            if (target.id == targetId)
+            {
                 target.grabbed = true;
                 return true;
             }
         }
+
         return false;
     }
 }

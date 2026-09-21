@@ -142,6 +142,18 @@ add_vision_test(
     validation
 )
 
+add_vision_test(
+    testEmptyTargetsRecovery
+    empty-targets
+    state
+)
+
+add_vision_test(
+    testTargetSelectionEdgeCases
+    selection-edge-cases
+    state
+)
+
 # Windows 下运行时自动复制 OpenCV Debug DLL
 if (WIN32 AND TARGET opencv_world)
     add_custom_command(

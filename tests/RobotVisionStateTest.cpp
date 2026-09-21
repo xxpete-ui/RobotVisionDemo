@@ -639,6 +639,103 @@ bool testNonFiniteCameraConfig()
 }
 
 
+bool testEmptyTargetsRecovery()
+{
+    RobotVision vision(kDefaultCamera, kIdentityTransform);
+
+    std::vector<Target> targets{};
+    const auto emptyResult = vision.run(targets);
+
+    if (emptyResult) {
+        std::cerr << "FAIL: empty target list returned a result\n";
+        return false;
+    }
+
+    if (vision.getStatus() != VisionStatus::NoValidTarget) {
+        std::cerr
+            << "FAIL: expected NoValidTarget for empty list\n";
+        return false;
+    }
+
+    targets.push_back(
+        {
+            7,
+            0.90,
+            720.0,
+            400.0,
+            false
+        }
+    );
+
+    const auto recoveredResult = vision.run(targets);
+
+    if (!recoveredResult) {
+        std::cerr
+            << "FAIL: vision did not recover after adding a target\n";
+        return false;
+    }
+
+    if (vision.getStatus() != VisionStatus::OK || recoveredResult->target.id != 7) {
+        std::cerr
+            << "FAIL: incorrect result after empty-list recovery\n";
+        return false;
+    }
+    return true;
+}
+
+
+bool testTargetSelectionEdgeCases()
+{
+    const std::vector<Target> emptyTargets{};
+
+    if (TargetProcessing::selectBestTarget(emptyTargets) != nullptr) {
+        std::cerr
+            << "FAIL: empty target list returned a target\n";
+        return false;
+    }
+
+    const std::vector<Target> equalConfidenceTargets{
+        {1, 0.80, 700.0, 380.0, false},
+        {2, 0.80, 720.0, 400.0, false}
+    };
+
+    const Target* selectedTarget = TargetProcessing::selectBestTarget(equalConfidenceTargets);
+    if (selectedTarget == nullptr)
+    {
+        std::cerr
+            << "FAIL: equal-confidence selection returned nullptr\n";
+        return false;
+    }
+
+    if (selectedTarget !=
+        &equalConfidenceTargets[0])
+    {
+        std::cerr
+            << "FAIL: equal confidence did not keep first target\n";
+        return false;
+    }
+
+    if (selectedTarget->id != 1)
+    {
+        std::cerr
+            << "FAIL: incorrect target selected for equal confidence\n";
+        return false;
+    }
+
+    const std::vector<ValidTarget> emptyValidTargets{};
+
+    if (TargetProcessing::selectBestValidTarget(emptyValidTargets) != nullptr) {
+        {
+            std::cerr
+                << "FAIL: empty valid-target list returned a target\n";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 int main(int argc, char* argv[])
 {
     struct TestScenario
@@ -664,7 +761,9 @@ int main(int argc, char* argv[])
         {"valid-projection", testValidProjectionParameters},
         {"non-finite-projection", testNonFiniteProjectionParameters},
         {"non-finite-transform", testNonFiniteTransform},
-        {"non-finite-camera", testNonFiniteCameraConfig}
+        {"non-finite-camera", testNonFiniteCameraConfig},
+        {"empty-targets", testEmptyTargetsRecovery},
+        {"selection-edge-cases", testTargetSelectionEdgeCases}
     };
 
     if (argc != 2) {

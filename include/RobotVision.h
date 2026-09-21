@@ -17,8 +17,6 @@ public:
     [[nodiscard]]
     VisionStatus getStatus() const;
 
-    const char* statusToString(VisionStatus status);
-
 private:
     CameraConfig cameraConfig;
     TransformMatrix T{};
