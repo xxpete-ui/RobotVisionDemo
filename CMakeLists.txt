@@ -8,6 +8,12 @@ option(
     ON
 )
 
+option(
+    ROBOTVISION_ENABLE_SANITIZERS
+    "Enable AddressSanitizer and UndefinedBehaniorSanitizer"
+    OFF
+)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -33,6 +39,43 @@ function(enable_project_warnings target_name)
 	    -Wextra
 	    -Wpedantic
 	)
+    endif()
+endfunction()
+
+if (
+    ROBOTVISION_ENABLE_SANITIZERS
+    AND NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang"
+)
+    message(
+        FATAL_ERROR
+        "Sanitizers are currently supported only with GCC or Clang"
+    )
+endif()
+
+function(enable_project_sanitizers target_name)
+    if (NOT ROBOTVISION_ENABLE_SANITIZERS)
+        return()
+    endif()
+
+    target_compile_options(
+        ${target_name}
+        PRIVATE
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+    )
+
+    get_target_property(
+        target_type
+        ${target_name}
+        TYPE
+    )
+
+    if (NOT target_type STREQUAL "STATIC_LIBRARY")
+        target_link_options(
+            ${target_name}
+            PRIVATE
+            -fsanitize=address,undefined
+        )
     endif()
 endfunction()
 
@@ -77,6 +120,7 @@ target_include_directories(
     include
 )
 enable_project_warnings(RobotVisionCore)
+enable_project_sanitizers(RobotVisionCore)
 
 if (ROBOTVISION_BUILD_DEMO)
     find_package(OpenCV REQUIRED)
@@ -88,6 +132,7 @@ if (ROBOTVISION_BUILD_DEMO)
         src/ImageDemo.cpp
     )
     enable_project_warnings(RobotVisionDemo)
+    enable_project_sanitizers(RobotVisionDemo)
 
     target_link_libraries(
         RobotVisionDemo
@@ -117,6 +162,7 @@ add_executable(
     tests/RobotVisionStateGoogleTest.cpp
 )
 enable_project_warnings(RobotVisionStateGoogleTest)
+enable_project_sanitizers(RobotVisionStateGoogleTest)
 
 target_link_libraries(
     RobotVisionStateGoogleTest
@@ -139,6 +185,7 @@ add_executable(
     tests/RobotVisionValidationGoogleTest.cpp
 )
 enable_project_warnings(RobotVisionValidationGoogleTest)
+enable_project_sanitizers(RobotVisionValidationGoogleTest)
 
 target_link_libraries(
     RobotVisionValidationGoogleTest
@@ -161,6 +208,7 @@ add_executable(
     tests/RobotVisionTransformGoogleTest.cpp
 )
 enable_project_warnings(RobotVisionTransformGoogleTest)
+enable_project_sanitizers(RobotVisionTransformGoogleTest)
 
 target_link_libraries(
     RobotVisionTransformGoogleTest
