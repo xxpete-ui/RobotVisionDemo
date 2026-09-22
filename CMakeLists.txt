@@ -19,8 +19,8 @@ enable_testing()
 
 include(FetchContent)
 
-# Windows下让GoogleTest使用与主项目一致的动态CRT，
-# 避免/MT、/MD运行库不一致导致链接问题
+# Use the same dynamic MSVC runtime for GoogleTest and project targets
+# This avoids /MT and /MD runtime mismatches
 if (MSVC)
     set(
         gtest_force_shared_crt
@@ -57,6 +57,22 @@ target_include_directories(
     PUBLIC
     include
 )
+
+if (MSVC)
+    target_compile_options(
+	RobotVisionCore
+	PRIVATE
+	/W4
+    )
+else()
+    target_compile_options(
+	RobotVisionCore
+	PRIVATE
+	-Wall
+	-Wextra
+	-Wpedantic
+    )
+endif()
 
 if (ROBOTVISION_BUILD_DEMO)
     find_package(OpenCV REQUIRED)
