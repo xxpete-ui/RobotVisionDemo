@@ -2,14 +2,18 @@ cmake_minimum_required(VERSION 3.15)
 
 project(RobotVisionDemo)
 
+option(
+    ROBOTVISION_BUILD_DEMO
+    "build the OpenCV demonstration executable"
+    ON
+)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (MSVC)
     add_compile_options(/utf-8)
 endif()
-
-find_package(OpenCV REQUIRED)
 
 enable_testing()
 
@@ -54,19 +58,36 @@ target_include_directories(
     include
 )
 
-add_executable(
-    RobotVisionDemo
-    src/main.cpp
-    src/TransformTest.cpp
-    src/ImageDemo.cpp
-)
+if (ROBOTVISION_BUILD_DEMO)
+    find_package(OpenCV REQUIRED)
 
-target_link_libraries(
-    RobotVisionDemo
-    PRIVATE
-    RobotVisionCore
-    ${OpenCV_LIBS}
-)
+    add_executable(
+        RobotVisionDemo
+        src/main.cpp
+        src/TransformTest.cpp
+        src/ImageDemo.cpp
+    )
+
+    target_link_libraries(
+        RobotVisionDemo
+        PRIVATE
+        RobotVisionCore
+        ${OpenCV_LIBS}
+    )
+
+    # Copy the OpenCV runtime DLL next to the demo executable on Windows.
+    if (WIN32 AND TARGET opencv_world)
+        add_custom_command(
+            TARGET RobotVisionDemo
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:opencv_world>"
+                "$<TARGET_FILE_DIR:RobotVisionDemo>"
+            COMMENT "Copying OpenCV runtime DLL"
+        )
+    endif()
+endif()
+
 
 include(GoogleTest)
 
@@ -132,19 +153,3 @@ gtest_discover_tests(
         LABELS transform
         TIMEOUT 5
 )
-
-# Windows下运行时自动复制OpenCV DLL
-if (WIN32 AND TARGET opencv_world)
-    add_custom_command(
-        TARGET RobotVisionDemo
-        POST_BUILD
-        COMMAND
-            ${CMAKE_COMMAND}
-            -E
-            copy_if_different
-            "$<TARGET_FILE:opencv_world>"
-            "$<TARGET_FILE_DIR:RobotVisionDemo>"
-        COMMENT
-            "Copying OpenCV runtime DLL"
-    )
-endif()
