@@ -17,6 +17,24 @@ endif()
 
 enable_testing()
 
+function(enable_project_warnings target_name)
+    if (MSVC)
+	target_compile_options(
+	    ${target_name}
+	    PRIVATE
+	    /W4
+	)
+    else()
+	target_compile_options(
+	    ${target_name}
+	    PRIVATE
+	    -Wall
+	    -Wextra
+	    -Wpedantic
+	)
+    endif()
+endfunction()
+
 include(FetchContent)
 
 # Use the same dynamic MSVC runtime for GoogleTest and project targets
@@ -57,22 +75,7 @@ target_include_directories(
     PUBLIC
     include
 )
-
-if (MSVC)
-    target_compile_options(
-	RobotVisionCore
-	PRIVATE
-	/W4
-    )
-else()
-    target_compile_options(
-	RobotVisionCore
-	PRIVATE
-	-Wall
-	-Wextra
-	-Wpedantic
-    )
-endif()
+enable_project_warnings(RobotVisionCore)
 
 if (ROBOTVISION_BUILD_DEMO)
     find_package(OpenCV REQUIRED)
@@ -83,6 +86,7 @@ if (ROBOTVISION_BUILD_DEMO)
         src/TransformTest.cpp
         src/ImageDemo.cpp
     )
+    enable_project_warnings(RobotVisionDemo)
 
     target_link_libraries(
         RobotVisionDemo
@@ -111,6 +115,7 @@ add_executable(
     RobotVisionStateGoogleTest
     tests/RobotVisionStateGoogleTest.cpp
 )
+enable_project_warnings(RobotVisionStateGoogleTest)
 
 target_link_libraries(
     RobotVisionStateGoogleTest
@@ -132,6 +137,7 @@ add_executable(
     RobotVisionValidationGoogleTest
     tests/RobotVisionValidationGoogleTest.cpp
 )
+enable_project_warnings(RobotVisionValidationGoogleTest)
 
 target_link_libraries(
     RobotVisionValidationGoogleTest
@@ -153,6 +159,7 @@ add_executable(
     RobotVisionTransformGoogleTest
     tests/RobotVisionTransformGoogleTest.cpp
 )
+enable_project_warnings(RobotVisionTransformGoogleTest)
 
 target_link_libraries(
     RobotVisionTransformGoogleTest
