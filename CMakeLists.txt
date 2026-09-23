@@ -112,6 +112,8 @@ add_library(
     src/CoordinateTransform.cpp
     src/Logger.cpp
     src/TransformUtils.cpp
+    src/MockDetector.cpp
+    src/VisionPipeline.cpp
 )
 
 target_include_directories(
@@ -161,8 +163,14 @@ add_executable(
     RobotVisionStateGoogleTest
     tests/RobotVisionStateGoogleTest.cpp
 )
-enable_project_warnings(RobotVisionStateGoogleTest)
-enable_project_sanitizers(RobotVisionStateGoogleTest)
+
+enable_project_warnings(
+    RobotVisionStateGoogleTest
+)
+
+enable_project_sanitizers(
+    RobotVisionStateGoogleTest
+)
 
 target_link_libraries(
     RobotVisionStateGoogleTest
@@ -184,8 +192,14 @@ add_executable(
     RobotVisionValidationGoogleTest
     tests/RobotVisionValidationGoogleTest.cpp
 )
-enable_project_warnings(RobotVisionValidationGoogleTest)
-enable_project_sanitizers(RobotVisionValidationGoogleTest)
+
+enable_project_warnings(
+    RobotVisionValidationGoogleTest
+)
+
+enable_project_sanitizers(
+    RobotVisionValidationGoogleTest
+)
 
 target_link_libraries(
     RobotVisionValidationGoogleTest
@@ -207,8 +221,14 @@ add_executable(
     RobotVisionTransformGoogleTest
     tests/RobotVisionTransformGoogleTest.cpp
 )
-enable_project_warnings(RobotVisionTransformGoogleTest)
-enable_project_sanitizers(RobotVisionTransformGoogleTest)
+
+enable_project_warnings(
+    RobotVisionTransformGoogleTest
+)
+
+enable_project_sanitizers(
+    RobotVisionTransformGoogleTest
+)
 
 target_link_libraries(
     RobotVisionTransformGoogleTest
@@ -223,5 +243,62 @@ gtest_discover_tests(
         ${CMAKE_SOURCE_DIR}
     PROPERTIES
         LABELS transform
+        TIMEOUT 5
+)
+
+add_executable(
+    MockDetectorGoogleTest
+    tests/MockDetectorGoogleTest.cpp)
+
+enable_project_warnings(
+    MockDetectorGoogleTest
+)
+
+enable_project_sanitizers(
+    MockDetectorGoogleTest
+)
+
+target_link_libraries(
+    MockDetectorGoogleTest
+    PRIVATE
+    RobotVisionCore
+    GTest::gtest_main
+)
+
+gtest_discover_tests(
+    MockDetectorGoogleTest
+    WORKING_DIRECTORY
+        ${CMAKE_SOURCE_DIR}
+    PROPERTIES
+        LABELS detector
+        TIMEOUT 5
+)
+
+add_executable(
+    VisionPipelineGoogleTest
+    tests/VisionPipelineGoogleTest.cpp
+)
+
+enable_project_warnings(
+    VisionPipelineGoogleTest
+)
+
+enable_project_sanitizers(
+    VisionPipelineGoogleTest
+)
+
+target_link_libraries(
+    VisionPipelineGoogleTest
+    PRIVATE
+    RobotVisionCore
+    GTest::gtest_main
+)
+
+gtest_discover_tests(
+    VisionPipelineGoogleTest
+    WORKING_DIRECTORY
+        ${CMAKE_SOURCE_DIR}
+    PROPERTIES
+        LABELS detector
         TIMEOUT 5
 )

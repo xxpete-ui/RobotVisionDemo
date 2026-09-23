@@ -1,15 +1,20 @@
 ﻿#include <iostream>
 #include <vector>
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
 #include <opencv2/opencv.hpp>
-#include "Logger.h"
-#include "RobotVision.h"
-#include "VisionTypes.h"
-#include "TargetProcessing.h"
+
 #include "ImageDemo.h"
+#include "Logger.h"
+#include "MockDetector.h"
+#include "RobotVision.h"
+#include "TargetProcessing.h"
 #include "TransformTest.h"
+#include "VisionPipeline.h"
+#include "VisionTypes.h"
 
 
 int main()
@@ -43,8 +48,12 @@ int main()
     CameraConfig cameraConfig = { Z, fx, fy, cx, cy };
    
     RobotVision vision(cameraConfig, T);
+    MockDetector detector(targets);
+
+    VisionPipeline pipeline(detector, vision);
+
     const std::optional<ValidTarget> bestTarget =
-        vision.run(targets);
+        pipeline.run();
 
     if (bestTarget)
     {
@@ -66,8 +75,45 @@ int main()
             << bestTarget->robotPoint.Z
             << std::endl;
 
-        bool marked = TargetProcessing::markTargetGrabbed(targets, bestTarget->target.id);
-        std::cout << "标记是否成功：" << marked << std::endl;
+        const bool marked =
+            TargetProcessing::markTargetGrabbed(
+                targets,
+                bestTarget->target.id);
+
+        std::cout << "标记是否成功："<< marked << std::endl;
+
+        if (marked)
+        {
+            detector.setTargets(targets);
+
+            const std::optional<ValidTarget> nextTarget =
+                pipeline.run();
+
+            if (nextTarget)
+            {
+                std::cout
+                    << "下一目标 ID："
+                    << nextTarget->target.id
+                    << std::endl;
+
+                std::cout
+                    << "下一目标置信度："
+                    << nextTarget->target.confidence
+                    << std::endl;
+
+                std::cout
+                    << "下一目标机器人坐标："
+                    << nextTarget->robotPoint.X << ", "
+                    << nextTarget->robotPoint.Y << ", "
+                    << nextTarget->robotPoint.Z
+                    << std::endl;
+            }
+            else
+            {
+                Logger::warn(
+                    "标记抓取后没有剩余有效目标");
+            }
+        }
     }
     else {
         switch (vision.getStatus()) {
