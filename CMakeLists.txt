@@ -132,6 +132,7 @@ if (ROBOTVISION_BUILD_DEMO)
         src/main.cpp
         src/TransformTest.cpp
         src/ImageDemo.cpp
+        src/YoloDetector.cpp
     )
     enable_project_warnings(RobotVisionDemo)
     enable_project_sanitizers(RobotVisionDemo)

@@ -9,3 +9,8 @@ build/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+
+# Local inference models
+models/*.onnx
+models/*.engine
+data/yolo_bus.jpg
