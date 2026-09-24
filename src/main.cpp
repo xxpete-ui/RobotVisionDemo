@@ -1,12 +1,12 @@
 ﻿#include <iostream>
+#include <optional>
 #include <vector>
-#include <exception>
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-#include <opencv2/opencv.hpp>
-
+#include "YoloDemo.h"
 #include "ImageDemo.h"
 #include "Logger.h"
 #include "MockDetector.h"
@@ -15,7 +15,6 @@
 #include "TransformTest.h"
 #include "VisionPipeline.h"
 #include "VisionTypes.h"
-#include "YoloDetector.h"
 
 
 int main()
@@ -136,127 +135,7 @@ int main()
     << "================"
     << std::endl;
 
-std::cout
-    << "开始执行 YOLO ONNX Smoke Test"
-    << std::endl;
-
-try
-{
-    const cv::Mat yoloFrame =
-        cv::imread(
-            "data/yolo_bus.jpg");
-
-    if (yoloFrame.empty())
-    {
-        Logger::error(
-            "无法读取 YOLO 测试图片");
-    }
-    else
-    {
-        constexpr int kBusClassId = 5;
-
-        YoloDetector yoloDetector(
-            "models/yolo26n.onnx",
-            640,
-            640,
-            kBusClassId);
-
-        yoloDetector.setFrame(
-            yoloFrame);
-
-        VisionPipeline yoloPipeline(
-            yoloDetector,
-            vision);
-
-        const std::optional<ValidTarget> yoloBestTarget =
-            yoloPipeline.run();
-
-        if (yoloBestTarget)
-        {
-            std::cout
-                << "YOLO best target ID: "
-                << yoloBestTarget->target.id
-                << std::endl;
-
-            std::cout
-                << "YOLO confidence: "
-                << yoloBestTarget->target.confidence
-                << std::endl;
-
-            std::cout
-                << "YOLO pixel center: ("
-                << yoloBestTarget->target.x
-                << ", "
-                << yoloBestTarget->target.y
-                << ')'
-                << std::endl;
-
-            std::cout
-                << "YOLO camera point: ("
-                << yoloBestTarget->cameraPoint.X
-                << ", "
-                << yoloBestTarget->cameraPoint.Y
-                << ", "
-                << yoloBestTarget->cameraPoint.Z
-                << ')'
-                << std::endl;
-
-            std::cout
-                << "YOLO robot point: ("
-                << yoloBestTarget->robotPoint.X
-                << ", "
-                << yoloBestTarget->robotPoint.Y
-                << ", "
-                << yoloBestTarget->robotPoint.Z
-                << ')'
-                << std::endl;
-        }
-        else
-        {
-            Logger::warn(
-                "YOLO pipeline returned no valid target");
-        }
-
-        const std::vector<int>& outputShape =
-            yoloDetector.getLastOutputShape();
-
-        std::cout
-            << "YOLO output shape: ";
-
-        for (std::size_t index = 0;
-             index < outputShape.size();
-             ++index)
-        {
-            if (index > 0U)
-            {
-                std::cout << " x ";
-            }
-
-            std::cout
-                << outputShape[index];
-        }
-
-        std::cout << std::endl;
-
-        std::cout
-            << "YOLO ONNX forward: PASS"
-            << std::endl;
-    }
-}
-catch (const cv::Exception& error)
-{
-    Logger::error(
-        std::string(
-            "OpenCV DNN 执行失败: ") +
-        error.what());
-}
-catch (const std::exception& error)
-{
-    Logger::error(
-        std::string(
-            "YOLO Smoke Test 失败: ") +
-        error.what());
-}
+    runYoloDemo();
 
     if (!showImageDemo("data/test.jpg")) {
         return 0;
