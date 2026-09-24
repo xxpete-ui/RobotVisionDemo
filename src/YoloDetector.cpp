@@ -1,4 +1,4 @@
-#include "YoloDetector.h"
+ï»¿#include "YoloDetector.h"
 
 #include <opencv2/core/utils/logger.hpp>
 #include <opencv2/imgproc.hpp>
@@ -57,7 +57,7 @@ YoloDetector::YoloDetector(
     cv::utils::logging::setLogLevel(
         cv::utils::logging::LOG_LEVEL_WARNING);
 
-    // ´ò¿ªÓ²ÅÌÉÏµÄ onnx ÎÄ¼ş£¬¶ÁÈ¡¡¢½âÎöÉñ¾­ÍøÂç½á¹¹ + È¨ÖØ£¬Éú³É¿ÉÍÆÀíµÄ Net
+    // æ‰“å¼€ç¡¬ç›˜ä¸Šçš„ onnx æ–‡ä»¶ï¼Œè¯»å–ã€è§£æç¥ç»ç½‘ç»œç»“æ„ + æƒé‡ï¼Œç”Ÿæˆå¯æ¨ç†çš„ Net
     net_ = cv::dnn::readNetFromONNX(
         modelPath);
 
@@ -68,11 +68,11 @@ YoloDetector::YoloDetector(
             modelPath);
     }
 
-    // Æ«ºÃÉèÖÃ ÓÅÏÈÑ¡ÓÃ OpenCV ×Ô´øµÄ DNN Ëã×ÓÊµÏÖ
+    // åå¥½è®¾ç½® ä¼˜å…ˆé€‰ç”¨ OpenCV è‡ªå¸¦çš„ DNN ç®—å­å®ç°
     net_.setPreferableBackend(
         cv::dnn::DNN_BACKEND_OPENCV);
 
-    // Æ«ºÃÉèÖÃ ÔÚ CPU ÉÏÖ´ĞĞÍÆÀí
+    // åå¥½è®¾ç½® åœ¨ CPU ä¸Šæ‰§è¡Œæ¨ç†
     net_.setPreferableTarget(
         cv::dnn::DNN_TARGET_CPU);
 }
@@ -80,6 +80,8 @@ YoloDetector::YoloDetector(
 void YoloDetector::setFrame(
     const cv::Mat& frame)
 {
+    lastDebugFrame_.release();
+
     if (frame.empty())
     {
         frame_.release();
@@ -91,16 +93,23 @@ void YoloDetector::setFrame(
     frame_ = frame.clone();
 }
 
+void YoloDetector::setVerbose(bool enabled) noexcept
+{
+    verbose_ = enabled;
+}
+
 std::vector<Target> YoloDetector::detect()
 {
+    lastDebugFrame_.release();
+
     if (frame_.empty())
     {
         throw std::runtime_error(
             "YOLO detect called before setFrame");
     }
 
-    // ¼ÆËã Letterbox Ëõ·Å±ÈÀı
-    // tatic_cast<float>£ºÇ¿ÖÆ°Ñint×ª³Éfloat
+    // è®¡ç®— Letterbox ç¼©æ”¾æ¯”ä¾‹
+    // tatic_cast<float>ï¼šå¼ºåˆ¶æŠŠintè½¬æˆfloat
     const float letterboxScale =
         std::min(
             static_cast<float>(inputWidth_) /
@@ -108,7 +117,7 @@ std::vector<Target> YoloDetector::detect()
             static_cast<float>(inputHeight_) /
             static_cast<float>(frame_.rows));
 
-    // std::round£ºËÄÉáÎåÈëÈ¡Õû£¬ÏñËØ±ØĞëÊÇÕûÊı
+    // std::roundï¼šå››èˆäº”å…¥å–æ•´ï¼Œåƒç´ å¿…é¡»æ˜¯æ•´æ•°
     const int resizedWidth =
         static_cast<int>(
             std::round(
@@ -130,7 +139,7 @@ std::vector<Target> YoloDetector::detect()
             resizedWidth,
             resizedHeight));
 
-    // ¼ÆËãËÄÖÜÌî³äµÄ»Ò±ß¿í¶È
+    // è®¡ç®—å››å‘¨å¡«å……çš„ç°è¾¹å®½åº¦
     const int horizontalPadding =
         inputWidth_ - resizedWidth;
 
@@ -151,8 +160,8 @@ std::vector<Target> YoloDetector::detect()
 
     cv::Mat letterboxedFrame;
 
-    // ¸øËõ·ÅÍ¼ËÄÖÜ¼Ó»Ò±ß£¨Letterbox×îÖÕĞ§¹û£©
-    // ²ÎÊı£ºÔ­Í¼¡¢Êä³öÍ¼¡¢ÉÏ¡¢ÏÂ¡¢×ó¡¢ÓÒ±ß¿ò¿í¶È
+    // ç»™ç¼©æ”¾å›¾å››å‘¨åŠ ç°è¾¹ï¼ˆLetterboxæœ€ç»ˆæ•ˆæœï¼‰
+    // å‚æ•°ï¼šåŸå›¾ã€è¾“å‡ºå›¾ã€ä¸Šã€ä¸‹ã€å·¦ã€å³è¾¹æ¡†å®½åº¦
     cv::copyMakeBorder(
         resizedFrame,
         letterboxedFrame,
@@ -160,35 +169,35 @@ std::vector<Target> YoloDetector::detect()
         paddingBottom,
         paddingLeft,
         paddingRight,
-        cv::BORDER_CONSTANT,  // BORDER_CONSTANT£ºÓÃ¹Ì¶¨ÑÕÉ«Ìî³ä
-        cv::Scalar(114, 114, 114));  // cv::Scalar(114,114,114)£ºYOLO±ê×¼µÄ»ÒÉ«Ìî³ä£¨RGB¶¼ÊÇ114£©
+        cv::BORDER_CONSTANT,  // BORDER_CONSTANTï¼šç”¨å›ºå®šé¢œè‰²å¡«å……
+        cv::Scalar(114, 114, 114));  // cv::Scalar(114,114,114)ï¼šYOLOæ ‡å‡†çš„ç°è‰²å¡«å……ï¼ˆRGBéƒ½æ˜¯114ï¼‰
 
-    // Í¼Æ¬×ª³ÉÉñ¾­ÍøÂçÊäÈë¸ñÊ½£¨Blob£©
+    // å›¾ç‰‡è½¬æˆç¥ç»ç½‘ç»œè¾“å…¥æ ¼å¼ï¼ˆBlobï¼‰
     const cv::Mat blob =
         cv::dnn::blobFromImage(
             letterboxedFrame,
-            1.0 / 255.0,  //¹éÒ»»¯
+            1.0 / 255.0,  //å½’ä¸€åŒ–
             cv::Size(
                 inputWidth_,
                 inputHeight_),
             cv::Scalar(),
-            true, //BGR×ªRGB£¬OpenCVÄ¬ÈÏBGR£¬YOLOÑµÁ·ÓÃRGB
-            false,  // ²»½»»»Í¨µÀ
-            CV_32F);  // Êı¾İÀàĞÍ£º32Î»¸¡µãÊı
+            true, //BGRè½¬RGBï¼ŒOpenCVé»˜è®¤BGRï¼ŒYOLOè®­ç»ƒç”¨RGB
+            false,  // ä¸äº¤æ¢é€šé“
+            CV_32F);  // æ•°æ®ç±»å‹ï¼š32ä½æµ®ç‚¹æ•°
 
-    // Éñ¾­ÍøÂçÍÆÀí
+    // ç¥ç»ç½‘ç»œæ¨ç†
     net_.setInput(blob);
 
-    // Ö´ĞĞÇ°ÏòÍÆÀí£¬µÃµ½Ä£ĞÍÊä³ö½á¹û
+    // æ‰§è¡Œå‰å‘æ¨ç†ï¼Œå¾—åˆ°æ¨¡å‹è¾“å‡ºç»“æœ
     const cv::Mat output =
         net_.forward();
 
-    lastOutputShape_.clear();   // Çå¿ÕÉÏÒ»´ÎµÄÊä³öĞÎ×´¼ÇÂ¼
-    // reserve£ºÔ¤·ÖÅäÄÚ´æ£¬ÌáÉıvector²åÈëĞÔÄÜ
+    lastOutputShape_.clear();   // æ¸…ç©ºä¸Šä¸€æ¬¡çš„è¾“å‡ºå½¢çŠ¶è®°å½•
+    // reserveï¼šé¢„åˆ†é…å†…å­˜ï¼Œæå‡vectoræ’å…¥æ€§èƒ½
     lastOutputShape_.reserve(
         static_cast<std::size_t>(output.dims));
 
-    // ±éÀúÊä³öÕÅÁ¿µÄÃ¿¸öÎ¬¶È£¬°ÑÎ¬¶È´óĞ¡´æÆğÀ´
+    // éå†è¾“å‡ºå¼ é‡çš„æ¯ä¸ªç»´åº¦ï¼ŒæŠŠç»´åº¦å¤§å°å­˜èµ·æ¥
     for (int dimension = 0;
         dimension < output.dims;
         ++dimension)
@@ -197,10 +206,10 @@ std::vector<Target> YoloDetector::detect()
             output.size[dimension]);
     }
 
-    // YOLO±ê×¼Êä³öĞÎ×´£º[1, 4+Àà±ğÊı, ¼ì²â¿ò×ÜÊı]
-    // dims!=3£º²»ÊÇÈıÎ¬ÕÅÁ¿£¬²»¶Ô
-    // size[0]!=1£ºÅú´Î²»ÊÇ1£¬²»¶Ô
-    // size[1]!=4+kClassCount£ºµÚ¶ş¸öÎ¬¶È²»ÊÇ 4¸ö×ø±ê+Àà±ğÊı£¬²»¶Ô
+    // YOLOæ ‡å‡†è¾“å‡ºå½¢çŠ¶ï¼š[1, 4+ç±»åˆ«æ•°, æ£€æµ‹æ¡†æ€»æ•°]
+    // dims!=3ï¼šä¸æ˜¯ä¸‰ç»´å¼ é‡ï¼Œä¸å¯¹
+    // size[0]!=1ï¼šæ‰¹æ¬¡ä¸æ˜¯1ï¼Œä¸å¯¹
+    // size[1]!=4+kClassCountï¼šç¬¬äºŒä¸ªç»´åº¦ä¸æ˜¯ 4ä¸ªåæ ‡+ç±»åˆ«æ•°ï¼Œä¸å¯¹
     if (output.dims != 3 ||
         output.size[0] != 1 ||
         output.size[1] != 4 + kClassCount)
@@ -209,16 +218,16 @@ std::vector<Target> YoloDetector::detect()
             "Unexpected YOLO output shape");
     }
 
-    // ===================== 9. µ÷ÕûÊä³ö¸ñÊ½£¬·½±ã±éÀúÃ¿¸ö¼ì²â¿ò =====================
-    // °ÑÈıÎ¬Êä³öÑ¹³É¶şÎ¬£º[1, 4+Àà±ğÊı, ¿òÊı] ¡ú [4+Àà±ğÊı, ¿òÊı]
+    // ===================== 9. è°ƒæ•´è¾“å‡ºæ ¼å¼ï¼Œæ–¹ä¾¿éå†æ¯ä¸ªæ£€æµ‹æ¡† =====================
+    // æŠŠä¸‰ç»´è¾“å‡ºå‹æˆäºŒç»´ï¼š[1, 4+ç±»åˆ«æ•°, æ¡†æ•°] â†’ [4+ç±»åˆ«æ•°, æ¡†æ•°]
     cv::Mat predictions =
         output.reshape(
             1,
             output.size[1]);
 
     cv::Mat transposed;
-    // ×ªÖÃ£º[4+Àà±ğÊı, ¿òÊı] ¡ú [¿òÊı, 4+Àà±ğÊı]
-    // ×ªÖÃºóÃ¿Ò»ĞĞ´ú±íÒ»¸ö¼ì²â¿ò£¬·½±ãÑ­»·±éÀúÃ¿Ò»¸ö¿ò
+    // è½¬ç½®ï¼š[4+ç±»åˆ«æ•°, æ¡†æ•°] â†’ [æ¡†æ•°, 4+ç±»åˆ«æ•°]
+    // è½¬ç½®åæ¯ä¸€è¡Œä»£è¡¨ä¸€ä¸ªæ£€æµ‹æ¡†ï¼Œæ–¹ä¾¿å¾ªç¯éå†æ¯ä¸€ä¸ªæ¡†
     cv::transpose(
         predictions,
         transposed);
@@ -277,10 +286,13 @@ std::vector<Target> YoloDetector::detect()
             });
     }
 
-    std::cout
-        << "Candidates before NMS: "
-        << candidates.size()
-        << '\n';
+    if (verbose_)
+    {
+        std::cout
+            << "Candidates before NMS: "
+            << candidates.size()
+            << '\n';
+    }
 
 
     std::vector<cv::Rect> boxes;
@@ -308,27 +320,30 @@ std::vector<Target> YoloDetector::detect()
         kNmsThreshold,
         selectedIndices);
 
-    // ´òÓ¡ÈÕÖ¾£ºNMSÖ®ºóÊ£ÏÂ¶àÉÙ¸ö¼ì²â½á¹û
-    std::cout
-        << "Detections after NMS: "
-        << selectedIndices.size()
-        << '\n';
+    // æ‰“å°æ—¥å¿—ï¼šNMSä¹‹åå‰©ä¸‹å¤šå°‘ä¸ªæ£€æµ‹ç»“æœ
+    if (verbose_)
+    {
+        std::cout
+            << "Detections after NMS: "
+            << selectedIndices.size()
+            << '\n';
+    }
 
-    // ×ø±êÓ³Éä£º°ÑletterboxÍ¼µÄ×ø±ê ×ª»Ø Ô­Ê¼Í¼Ïñ×ø±ê
+    // åæ ‡æ˜ å°„ï¼šæŠŠletterboxå›¾çš„åæ ‡ è½¬å› åŸå§‹å›¾åƒåæ ‡
     std::vector<Target> targets;
     targets.reserve(selectedIndices.size());
 
-    // ÔÚ¶ÀÁ¢¸±±¾ÉÏ»­Í¼£¬±£ÁôÔ­Ê¼ÍÆÀíÍ¼Æ¬¡£
+    // åœ¨ç‹¬ç«‹å‰¯æœ¬ä¸Šç”»å›¾ï¼Œä¿ç•™åŸå§‹æ¨ç†å›¾ç‰‡ã€‚
     cv::Mat debugFrame = frame_.clone();
 
-    int nextTargetId = 1;  // ¸øÄ¿±ê±àºÅ£¬´Ó1¿ªÊ¼
+    int nextTargetId = 1;  // ç»™ç›®æ ‡ç¼–å·ï¼Œä»1å¼€å§‹
 
     for (const int selectedIndex : selectedIndices)
     {
         const DetectionCandidate& detection =
             candidates.at(selectedIndex);
 
-        // È¡³öletterboxÍ¼ÉÏ¿òµÄËÄ¸ö±ß½ç×ø±ê
+        // å–å‡ºletterboxå›¾ä¸Šæ¡†çš„å››ä¸ªè¾¹ç•Œåæ ‡
         const float modelLeft =
             static_cast<float>(detection.box.x);
 
@@ -345,11 +360,11 @@ std::vector<Target> YoloDetector::detect()
                 detection.box.y +
                 detection.box.height);
 
-        // ×ø±ê·´Ëã²½Öè£º
-        // 1. ¼õÈ¥×ó±ß/ÉÏ±ßµÄ»Ò±ßÌî³ä
-        // 2. ³ıÒÔËõ·Å±ÈÀı£¬±ä»ØÔ­Í¼³ß´ç
-        // 3. std::clamp£º°Ñ×ø±êÏŞÖÆÔÚÔ­Í¼·¶Î§ÄÚ£¬
-        // ·ÀÖ¹Ô½½ç³ö¸ºÊı»ò³¬³öÍ¼Æ¬¿í¸ß
+        // åæ ‡åç®—æ­¥éª¤ï¼š
+        // 1. å‡å»å·¦è¾¹/ä¸Šè¾¹çš„ç°è¾¹å¡«å……
+        // 2. é™¤ä»¥ç¼©æ”¾æ¯”ä¾‹ï¼Œå˜å›åŸå›¾å°ºå¯¸
+        // 3. std::clampï¼šæŠŠåæ ‡é™åˆ¶åœ¨åŸå›¾èŒƒå›´å†…ï¼Œ
+        // é˜²æ­¢è¶Šç•Œå‡ºè´Ÿæ•°æˆ–è¶…å‡ºå›¾ç‰‡å®½é«˜
         const float originalLeft =
             std::clamp(
                 (modelLeft -
@@ -382,14 +397,14 @@ std::vector<Target> YoloDetector::detect()
                 0.0F,
                 static_cast<float>(frame_.rows));
 
-        // ¼ÆËãÄ¿±êÔÚÔ­Í¼ÉÏµÄÖĞĞÄµã×ø±ê
+        // è®¡ç®—ç›®æ ‡åœ¨åŸå›¾ä¸Šçš„ä¸­å¿ƒç‚¹åæ ‡
         const double centerX =
             (originalLeft + originalRight) * 0.5;
 
         const double centerY =
             (originalTop + originalBottom) * 0.5;
 
-        // ËÄÌõ±ßºÍÖĞĞÄµã¶¼ÒÑ¾­ÊÇÔ­Í¼×ø±ê¡£
+        // å››æ¡è¾¹å’Œä¸­å¿ƒç‚¹éƒ½å·²ç»æ˜¯åŸå›¾åæ ‡ã€‚
         const cv::Point topLeft(
             cvRound(originalLeft),
             cvRound(originalTop));
@@ -402,7 +417,7 @@ std::vector<Target> YoloDetector::detect()
             cvRound(centerX),
             cvRound(centerY));
 
-        // ÂÌÉ«¿ò¡£
+        // ç»¿è‰²æ¡†ã€‚
         cv::rectangle(
             debugFrame,
             topLeft,
@@ -411,7 +426,7 @@ std::vector<Target> YoloDetector::detect()
             2,
             cv::LINE_AA);
 
-        // ºìÉ«ÊµĞÄÖĞĞÄµã¡£
+        // çº¢è‰²å®å¿ƒä¸­å¿ƒç‚¹ã€‚
         cv::circle(
             debugFrame,
             center,
@@ -420,7 +435,7 @@ std::vector<Target> YoloDetector::detect()
             cv::FILLED,
             cv::LINE_AA);
 
-        // ×é×°³É Target ½á¹¹Ìå£¬¼ÓÈë½á¹ûÊı×é
+        // ç»„è£…æˆ Target ç»“æ„ä½“ï¼ŒåŠ å…¥ç»“æœæ•°ç»„
         targets.push_back({
             nextTargetId,
             static_cast<double>(detection.confidence),
@@ -429,49 +444,36 @@ std::vector<Target> YoloDetector::detect()
             false
             });
 
-        std::cout
-            << "targetId="
-            << nextTargetId
-            << ", classId="
-            << detection.classId
-            << ", confidence="
-            << detection.confidence
-            << ", center=("
-            << centerX
-            << ", "
-            << centerY
-            << "), originalBox=("
-            << originalLeft
-            << ", "
-            << originalTop
-            << ", "
-            << originalRight - originalLeft
-            << ", "
-            << originalBottom - originalTop
-            << ")\n";
+        if (verbose_)
+        {
+            std::cout
+                << "targetId="
+                << nextTargetId
+                << ", classId="
+                << detection.classId
+                << ", confidence="
+                << detection.confidence
+                << ", center=("
+                << centerX
+                << ", "
+                << centerY
+                << "), originalBox=("
+                << originalLeft
+                << ", "
+                << originalTop
+                << ", "
+                << originalRight - originalLeft
+                << ", "
+                << originalBottom - originalTop
+                << ")\n";
+        }
 
-        ++nextTargetId; // Ä¿±ê±àºÅ×ÔÔö
+        ++nextTargetId;
+
+        ++nextTargetId; // ç›®æ ‡ç¼–å·è‡ªå¢
     }
 
-    // ËùÓĞ¿ò»­Íêºó£¬Ö»±£´æÒ»´Î¡£
-    const std::string debugImagePath =
-        "out/yolo_detection_debug.jpg";
-
-    if (cv::imwrite(debugImagePath, debugFrame))
-    {
-        std::cout
-            << "YOLO debug image saved: "
-            << debugImagePath
-            << '\n';
-    }
-    else
-    {
-        std::cerr
-            << "Failed to save YOLO debug image: "
-            << debugImagePath
-            << '\n';
-    }
-
+    lastDebugFrame_ = debugFrame;
 
     return targets;
 }
@@ -480,4 +482,9 @@ const std::vector<int>&
 YoloDetector::getLastOutputShape() const noexcept
 {
     return lastOutputShape_;
+}
+
+cv::Mat YoloDetector::getLastDebugFrame() const
+{
+    return lastDebugFrame_.clone();
 }

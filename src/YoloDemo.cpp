@@ -7,6 +7,8 @@
 #include "YoloDetector.h"
 
 #include <opencv2/core.hpp>
+#include <opencv2/videoio.hpp>
+#include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 
 #include <chrono>
@@ -60,6 +62,8 @@ void runYoloDemo()
                 640,
                 640,
                 kTargetClassId);
+
+            yoloDetector.setVerbose(true);
 
             VisionPipeline yoloPipeline(
                 yoloDetector,
@@ -278,4 +282,121 @@ void runYoloDemo()
                 "YOLO Smoke Test 失败: ") +
             error.what());
     }
+}
+
+
+void runYoloVideoDemo()
+{
+    cv::VideoCapture video("data/street_cars.mp4");
+
+    if (!video.isOpened())
+    {
+        std::cerr << "无法打开视频\n";
+        return;
+    }
+
+    constexpr int kCarClassId = 2;
+    constexpr int kMaxFrames = 100;
+
+    YoloDetector detector(
+        "models/yolo26n.onnx",
+        640,
+        640,
+        kCarClassId);
+
+    // 暂时沿用学习用的相机参数和变换矩阵。
+    const CameraConfig camera{
+        2.0, 800.0, 800.0, 640.0, 360.0
+    };
+
+    const TransformMatrix transform{ {
+        {{1.0, 0.0, 0.0, 0.7}},
+        {{0.0, 1.0, 0.0, 2.1}},
+        {{0.0, 0.0, 1.0, 3.0}},
+        {{0.0, 0.0, 0.0, 1.0}}
+    } };
+
+    RobotVision vision(camera, transform);
+    VisionPipeline pipeline(detector, vision);
+
+    const std::string windowName = "YOLO car detection";
+
+    cv::namedWindow(
+        windowName,
+        cv::WINDOW_NORMAL);
+
+    cv::resizeWindow(
+        windowName,
+        960,
+        540);
+
+    for (int frameIndex = 0;
+        frameIndex < kMaxFrames;
+        ++frameIndex)
+    {
+        cv::Mat frame;
+
+        if (!video.read(frame) || frame.empty())
+        {
+            std::cout
+                << "视频结束或无法读取第 "
+                << frameIndex + 1
+                << " 帧\n";
+            break;
+        }
+
+        detector.setFrame(frame);
+
+        const auto start =
+            std::chrono::steady_clock::now();
+
+        const std::optional<ValidTarget> bestTarget =
+            pipeline.run();
+
+        const auto end =
+            std::chrono::steady_clock::now();
+
+        const double elapsedMs =
+            std::chrono::duration<double, std::milli>(
+                end - start).count();
+
+        std::cout
+            << "Frame " << frameIndex + 1
+            << ": " << frame.cols << "x" << frame.rows
+            << ", time=" << elapsedMs << " ms";
+
+        if (bestTarget)
+        {
+            std::cout
+                << ", best car confidence="
+                << bestTarget->target.confidence
+                << ", center=("
+                << bestTarget->target.x << ", "
+                << bestTarget->target.y << ")";
+
+            const cv::Mat debugFrame =
+                detector.getLastDebugFrame();
+
+            if (!debugFrame.empty())
+            {
+                cv::imshow(windowName, debugFrame);
+            }
+
+            const int key = cv::waitKey(1);
+
+            if (key == 27 || key == 'q' || key == 'Q')
+            {
+                std::cout << "Video demo stopped by user\n";
+                break;
+            }
+        }
+        else
+        {
+            std::cout << ", no car";
+        }
+
+        std::cout << '\n';
+    }
+
+    cv::destroyWindow(windowName);
 }

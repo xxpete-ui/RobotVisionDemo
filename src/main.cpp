@@ -136,6 +136,7 @@ int main()
     << std::endl;
 
     runYoloDemo();
+    runYoloVideoDemo();
 
     if (!showImageDemo("data/test.jpg")) {
         return 0;

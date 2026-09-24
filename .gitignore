@@ -14,3 +14,4 @@ cmake_install.cmake
 models/*.onnx
 models/*.engine
 data/yolo_bus.jpg
+data/street_cars.mp4
