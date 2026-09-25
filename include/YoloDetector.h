@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <cstddef>
 
 class YoloDetector final : public IDetector
 {
@@ -29,6 +30,8 @@ public:
     const std::vector<int>&
         getLastOutputShape() const noexcept;
 
+    std::size_t getLastDetectionCount() const noexcept;
+
 private:
     cv::dnn::Net net_;
     cv::Mat frame_;
@@ -38,4 +41,6 @@ private:
     int targetClassId_;
     bool verbose_ = false;
     std::vector<int> lastOutputShape_;
+
+    std::size_t lastDetectionCount_{ 0 };
 };

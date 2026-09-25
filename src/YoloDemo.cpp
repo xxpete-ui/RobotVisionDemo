@@ -57,6 +57,7 @@ void runYoloDemo()
         {
             constexpr int kTargetClassId = 5;
 
+            // 构造时读取一次 ONNX 模型，指定输入 640×640、只保留 kTargetClassId
             YoloDetector yoloDetector(
                 "models/yolo26n.onnx",
                 640,
@@ -65,10 +66,12 @@ void runYoloDemo()
 
             yoloDetector.setVerbose(true);
 
+            // 仅这个检测器打印候选框、NMS、目标细节。
             VisionPipeline yoloPipeline(
                 yoloDetector,
                 vision);
 
+            // 与原图片同样宽、高、像素类型，全部填 0；用来验证“无目标”。
             const cv::Mat blankFrame(
                 yoloFrame.size(),
                 yoloFrame.type(),
@@ -88,6 +91,7 @@ void runYoloDemo()
 
                 if (frameIndex == 1)
                 {
+                    // 第 1、3 次送巴士图；第 2 次送黑图。
                     yoloDetector.setFrame(blankFrame);
                     std::cout << "Input: blank frame\n";
                 }
@@ -99,10 +103,11 @@ void runYoloDemo()
 
                 const auto start =
                     std::chrono::steady_clock::now();
-
+                // 只在这里运行， 打印候选框、NMS、目标细节
                 const std::optional<ValidTarget> yoloBestTarget =
                     yoloPipeline.run();
 
+                // 获取 vision.getStatus()、打印结果、用 end-start 算本次流水线耗时。
                 std::cout << std::boolalpha
                     << "Has target: "
                     << yoloBestTarget.has_value()
@@ -115,6 +120,7 @@ void runYoloDemo()
                 const auto end =
                     std::chrono::steady_clock::now();
 
+                // 计算 start到 end 之间消耗的时间，单位是毫秒
                 const double elapsedMs =
                     std::chrono::duration<double, std::milli>(
                         end - start).count();
@@ -363,39 +369,47 @@ void runYoloVideoDemo()
         std::cout
             << "Frame " << frameIndex + 1
             << ": " << frame.cols << "x" << frame.rows
-            << ", time=" << elapsedMs << " ms";
+            << ", time=" << elapsedMs << " ms"
+            << ", cars=" << detector.getLastDetectionCount();;
 
         if (bestTarget)
         {
+            const Target& target = bestTarget->target;
+
             std::cout
-                << ", best car confidence="
-                << bestTarget->target.confidence
-                << ", center=("
-                << bestTarget->target.x << ", "
-                << bestTarget->target.y << ")";
-
-            const cv::Mat debugFrame =
-                detector.getLastDebugFrame();
-
-            if (!debugFrame.empty())
-            {
-                cv::imshow(windowName, debugFrame);
-            }
-
-            const int key = cv::waitKey(1);
-
-            if (key == 27 || key == 'q' || key == 'Q')
-            {
-                std::cout << "Video demo stopped by user\n";
-                break;
-            }
+                << ", classId=" << target.classId
+                << ", box=("
+                << target.box.x << ", "
+                << target.box.y << ", "
+                << target.box.width << ", "
+                << target.box.height << ")"
+                << ", selected center=("
+                << target.x << ", "
+                << target.y << ")";
         }
         else
         {
             std::cout << ", no car";
         }
 
+        // 一帧的日志到这里结束；不能再有第二处打印 ", no car"。
         std::cout << '\n';
+
+        // 显示和按键检查放在 if/else 外：无车帧也照常更新窗口。
+        const cv::Mat debugFrame = detector.getLastDebugFrame();
+
+        if (!debugFrame.empty())
+        {
+            cv::imshow(windowName, debugFrame);
+        }
+
+        const int key = cv::waitKey(1);
+
+        if (key == 27 || key == 'q' || key == 'Q')
+        {
+            std::cout << "Video demo stopped by user\n";
+            break;
+        }
     }
 
     cv::destroyWindow(windowName);

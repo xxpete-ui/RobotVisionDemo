@@ -1,4 +1,5 @@
 ﻿#include "YoloDetector.h"
+#include "LetterboxGeometry.h"
 
 #include <opencv2/core/utils/logger.hpp>
 #include <opencv2/imgproc.hpp>
@@ -80,16 +81,19 @@ YoloDetector::YoloDetector(
 void YoloDetector::setFrame(
     const cv::Mat& frame)
 {
+    // 新输入到来，旧的绘图不再代表本次结果
     lastDebugFrame_.release();
+    lastDetectionCount_ = 0;
 
     if (frame.empty())
     {
+        // 空输入时也清除旧的有效帧
         frame_.release();
 
         throw std::invalid_argument(
             "YOLO input frame must not be empty");
     }
-
+    // 深拷贝：视频循环的局部 frame 之后被复用也不会影响检测。
     frame_ = frame.clone();
 }
 
@@ -100,7 +104,9 @@ void YoloDetector::setVerbose(bool enabled) noexcept
 
 std::vector<Target> YoloDetector::detect()
 {
+    // 开始新一次推理时，旧绘图先失效
     lastDebugFrame_.release();
+    lastDetectionCount_ = 0;
 
     if (frame_.empty())
     {
@@ -146,6 +152,7 @@ std::vector<Target> YoloDetector::detect()
     const int verticalPadding =
         inputHeight_ - resizedHeight;
 
+    // 剩余尺寸分配给左右/上下灰边；奇数像素余数分到右侧/下侧。
     const int paddingLeft =
         horizontalPadding / 2;
 
@@ -172,7 +179,7 @@ std::vector<Target> YoloDetector::detect()
         cv::BORDER_CONSTANT,  // BORDER_CONSTANT：用固定颜色填充
         cv::Scalar(114, 114, 114));  // cv::Scalar(114,114,114)：YOLO标准的灰色填充（RGB都是114）
 
-    // 图片转成神经网络输入格式（Blob）
+    // 图片转成神经网络输入格式（Blob 张量）
     const cv::Mat blob =
         cv::dnn::blobFromImage(
             letterboxedFrame,
@@ -192,7 +199,9 @@ std::vector<Target> YoloDetector::detect()
     const cv::Mat output =
         net_.forward();
 
-    lastOutputShape_.clear();   // 清空上一次的输出形状记录
+    // 清空上一次的输出形状记录
+    lastOutputShape_.clear();
+
     // reserve：预分配内存，提升vector插入性能
     lastOutputShape_.reserve(
         static_cast<std::size_t>(output.dims));
@@ -207,8 +216,9 @@ std::vector<Target> YoloDetector::detect()
     }
 
     // YOLO标准输出形状：[1, 4+类别数, 检测框总数]
+    // 当前导出的模型预期 [1, 84, 8400]
     // dims!=3：不是三维张量，不对
-    // size[0]!=1：批次不是1，不对
+    // size[0]!=1：批次batch不是1，不对
     // size[1]!=4+kClassCount：第二个维度不是 4个坐标+类别数，不对
     if (output.dims != 3 ||
         output.size[0] != 1 ||
@@ -246,6 +256,7 @@ std::vector<Target> YoloDetector::detect()
 
         const float* classScores = prediction + 4;
 
+        // 找该候选位置得分最高的类别及分数。
         const auto bestClassIterator =
             std::max_element(
                 classScores,
@@ -257,7 +268,7 @@ std::vector<Target> YoloDetector::detect()
         {
             continue;
         }
-
+        // targetClassId_ 为 -1 时不筛类别；视频为 2，只留 car；图片为 5，只留 bus。
         const int classId = static_cast<int>(
             std::distance(
                 classScores,
@@ -312,6 +323,7 @@ std::vector<Target> YoloDetector::detect()
 
     std::vector<int> selectedIndices;
 
+    // 按类别分开执行非极大值抑制，去除同一物体的重叠候选框
     cv::dnn::NMSBoxesBatched(
         boxes,
         confidences,
@@ -365,42 +377,32 @@ std::vector<Target> YoloDetector::detect()
         // 2. 除以缩放比例，变回原图尺寸
         // 3. std::clamp：把坐标限制在原图范围内，
         // 防止越界出负数或超出图片宽高
-        const float originalLeft =
-            std::clamp(
-                (modelLeft -
-                    static_cast<float>(paddingLeft)) /
+        const std::optional<BoundingBox> originalBox =
+            LetterboxGeometry::restoreBox(
+                modelLeft,
+                modelTop,
+                modelRight,
+                modelBottom,
                 letterboxScale,
-                0.0F,
-                static_cast<float>(frame_.cols));
+                paddingLeft,
+                paddingTop,
+                frame_.cols,
+                frame_.rows);
 
-        const float originalTop =
-            std::clamp(
-                (modelTop -
-                    static_cast<float>(paddingTop)) /
-                letterboxScale,
-                0.0F,
-                static_cast<float>(frame_.rows));
+        if (!originalBox)
+        {
+            continue;
+        }
 
-        const float originalRight =
-            std::clamp(
-                (modelRight -
-                    static_cast<float>(paddingLeft)) /
-                letterboxScale,
-                0.0F,
-                static_cast<float>(frame_.cols));
+        const double originalLeft = originalBox->x;
+        const double originalTop = originalBox->y;
+        const double originalRight =
+            originalBox->x + originalBox->width;
+        const double originalBottom =
+            originalBox->y + originalBox->height;
 
-        const float originalBottom =
-            std::clamp(
-                (modelBottom -
-                    static_cast<float>(paddingTop)) /
-                letterboxScale,
-                0.0F,
-                static_cast<float>(frame_.rows));
-
-        // 计算目标在原图上的中心点坐标
         const double centerX =
             (originalLeft + originalRight) * 0.5;
-
         const double centerY =
             (originalTop + originalBottom) * 0.5;
 
@@ -441,8 +443,15 @@ std::vector<Target> YoloDetector::detect()
             static_cast<double>(detection.confidence),
             centerX,
             centerY,
-            false
-            });
+            false,
+            detection.classId,
+            {
+                originalLeft,
+                originalTop,
+                originalRight - originalLeft,
+                originalBottom - originalTop
+            }
+        });
 
         if (verbose_)
         {
@@ -468,12 +477,11 @@ std::vector<Target> YoloDetector::detect()
                 << ")\n";
         }
 
-        ++nextTargetId;
-
         ++nextTargetId; // 目标编号自增
     }
 
     lastDebugFrame_ = debugFrame;
+    lastDetectionCount_ = targets.size(); // 已通过类别过滤和 NMS 的目标数
 
     return targets;
 }
@@ -487,4 +495,9 @@ YoloDetector::getLastOutputShape() const noexcept
 cv::Mat YoloDetector::getLastDebugFrame() const
 {
     return lastDebugFrame_.clone();
+}
+
+std::size_t YoloDetector::getLastDetectionCount() const noexcept
+{
+    return lastDetectionCount_;
 }

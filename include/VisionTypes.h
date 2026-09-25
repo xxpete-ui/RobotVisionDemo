@@ -1,6 +1,15 @@
 ﻿#pragma once
 
 #include <array>
+#include <optional>
+
+struct BoundingBox
+{
+    double x{};       // 原图中框的左边
+    double y{};       // 原图中框的上边
+    double width{};   // 原图中的宽
+    double height{};  // 原图中的高
+};
 
 struct Target {
     int id;
@@ -8,6 +17,10 @@ struct Target {
     double x;
     double y;
     bool grabbed;
+
+    int classId{ -1 };  // -1 表示 Mock 等来源未提供类别
+    BoundingBox box{};
+    std::optional<double> depthMeters{};
 };
 
 struct CameraConfig {

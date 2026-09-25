@@ -51,10 +51,12 @@ int main()
     MockDetector detector(targets);
 
     VisionPipeline pipeline(detector, vision);
-
+    // 调用链：pipeline.run() → detector.detect()
+    //      → vision.run(targets) → 返回 optional<ValidTarget>。
     const std::optional<ValidTarget> bestTarget =
         pipeline.run();
 
+    //打印最佳目标，标记抓取，更新 MockDetector，再选下一目标。
     if (bestTarget)
     {
         std::cout << "最佳目标 ID："
@@ -135,13 +137,13 @@ int main()
     << "================"
     << std::endl;
 
-    runYoloDemo();
-    runYoloVideoDemo();
+    runYoloDemo();   // 第二段：静态图片、黑图、空帧恢复。
+    runYoloVideoDemo();   // 第三段：街景视频最多 100 帧。
+
 
     if (!showImageDemo("data/test.jpg")) {
         return 0;
     }
-
 
     CameraPoint cameraPointResult{};
     bool cameraSuccess = demoLetterboxToCamera(cameraConfig, cameraPointResult);

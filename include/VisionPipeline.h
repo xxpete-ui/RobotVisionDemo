@@ -6,6 +6,7 @@
 
 class IDetector;
 class RobotVision;
+struct DepthFrame;
 
 class VisionPipeline
 {
@@ -15,6 +16,9 @@ public:
         RobotVision& robotVision);
 
     std::optional<ValidTarget> run();
+
+    std::optional<ValidTarget> runWithDepth(
+        const DepthFrame& depthFrame);
 
 private:
     IDetector& detector_;

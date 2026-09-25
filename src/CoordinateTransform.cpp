@@ -16,20 +16,31 @@ namespace CoordinateTransform {
             return std::nullopt;
         }
 
+        // 有目标深度就用目标深度；没有时暂用演示配置中的固定 Z。
+        const double depth =
+            target.depthMeters.value_or(config.Z);
+
+        // 0、负数、NaN 和无穷大都不能用于像素反投影。
+        if (!std::isfinite(depth) || depth <= 0.0)
+        {
+            Logger::error("目标深度无效");
+            return std::nullopt;
+        }
+
         const double X =
             (target.x - config.cx) *
-            config.Z /
+            depth /
             config.fx;
 
         const double Y =
             (target.y - config.cy) *
-            config.Z /
+            depth /
             config.fy;
 
         return CameraPoint{
             X,
             Y,
-            config.Z
+            depth
         };
     }
 
