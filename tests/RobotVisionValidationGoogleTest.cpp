@@ -413,3 +413,68 @@ TEST_P(
     EXPECT_FALSE(
         result.has_value());
 }
+
+TEST(CameraConfigValidationTest, RequiresBothImageDimensions)
+{
+    CameraConfig camera{
+        2.0, 800.0, 800.0, 640.0, 360.0
+    };
+
+    // 旧配置：两个尺寸都是 0，暂时允许。
+    EXPECT_TRUE(
+        CoordinateTransform::isValidCameraConfig(camera));
+
+    camera.imageWidth = 1920;
+    EXPECT_FALSE(
+        CoordinateTransform::isValidCameraConfig(camera));
+
+    camera.imageHeight = 1080;
+    EXPECT_TRUE(
+        CoordinateTransform::isValidCameraConfig(camera));
+
+    camera.imageWidth = -1;
+    EXPECT_FALSE(
+        CoordinateTransform::isValidCameraConfig(camera));
+}
+
+TEST(CameraConfigValidationTest, MatchesDeclaredImageSize)
+{
+    CameraConfig camera{
+        2.0, 800.0, 800.0, 640.0, 360.0
+    };
+
+    EXPECT_FALSE(
+        CoordinateTransform::matchesImageSize(
+            camera, 1920, 1080));
+
+    camera.imageWidth = 1920;
+    camera.imageHeight = 1080;
+
+    EXPECT_TRUE(
+        CoordinateTransform::matchesImageSize(
+            camera, 1920, 1080));
+
+    EXPECT_FALSE(
+        CoordinateTransform::matchesImageSize(
+            camera, 1280, 720));
+}
+
+TEST(CameraConfigValidationTest, RejectsNonFiniteDistortion)
+{
+    CameraConfig camera{
+        2.0, 800.0, 800.0, 640.0, 360.0
+    };
+
+    camera.distortionCoefficients[0] =
+        std::numeric_limits<double>::quiet_NaN();
+
+    EXPECT_FALSE(
+        CoordinateTransform::isValidCameraConfig(camera));
+
+    camera.distortionCoefficients[0] = 0.0;
+    camera.distortionCoefficients[4] =
+        std::numeric_limits<double>::infinity();
+
+    EXPECT_FALSE(
+        CoordinateTransform::isValidCameraConfig(camera));
+}

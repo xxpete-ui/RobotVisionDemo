@@ -139,6 +139,14 @@ int main()
 
     runYoloDemo();   // 第二段：静态图片、黑图、空帧恢复。
     runYoloVideoDemo();   // 第三段：街景视频最多 100 帧。
+    runCalibrationFileDemo(
+        "data/camera_calibration_example.yml");
+
+    //runCalibrationFileDemo(
+    //    "data/camera_calibration_invalid.yml");
+
+    //runCalibrationFileDemo(
+    //    "data/camera_calibration_broken.yml");
 
 
     if (!showImageDemo("data/test.jpg")) {

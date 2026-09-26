@@ -152,6 +152,14 @@ namespace CoordinateTransform {
     bool isValidCameraConfig(
         const CameraConfig& config)
     {
+        for (double coefficient : config.distortionCoefficients)
+        {
+            if (!std::isfinite(coefficient))
+            {
+                return false;
+            }
+        }
+
         return
             std::isfinite(config.Z) &&
             std::isfinite(config.fx) &&
@@ -160,6 +168,26 @@ namespace CoordinateTransform {
             std::isfinite(config.cy) &&
             config.Z > 0.0 &&
             config.fx > 0.0 &&
-            config.fy > 0.0;
+            config.fy > 0.0 &&
+            // 尺寸只能是“两个都未提供”或“两个都为正”
+            (
+                (config.imageWidth == 0 && config.imageHeight == 0) ||
+                (config.imageWidth > 0 && config.imageHeight > 0)
+                );
+    }
+
+    bool matchesImageSize(
+        const CameraConfig& config,
+        int imageWidth,
+        int imageHeight)
+    {
+        return
+            isValidCameraConfig(config) &&
+            config.imageWidth > 0 &&
+            config.imageHeight > 0 &&
+            imageWidth > 0 &&
+            imageHeight > 0 &&
+            config.imageWidth == imageWidth &&
+            config.imageHeight == imageHeight;
     }
 }

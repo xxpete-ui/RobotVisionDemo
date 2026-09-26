@@ -134,6 +134,7 @@ if (ROBOTVISION_BUILD_DEMO)
         src/ImageDemo.cpp
         src/YoloDetector.cpp
         src/YoloDemo.cpp
+        src/CalibrationLoader.cpp
     )
     enable_project_warnings(RobotVisionDemo)
     enable_project_sanitizers(RobotVisionDemo)

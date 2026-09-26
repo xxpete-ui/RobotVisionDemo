@@ -29,6 +29,13 @@ struct CameraConfig {
     double fy;
     double cx;
     double cy;
+
+    int imageWidth{0};
+    int imageHeight{0};
+    // OpenCV 常用的五参数顺序：k1, k2, p1, p2, k3
+    // std::array<T, N>是 C++ 标准固定大小数组模板：
+    // 容器只能存放double类型的数据，容量只能是5，不能变
+    std::array<double, 5> distortionCoefficients{};
 };
 
 struct CameraPoint {

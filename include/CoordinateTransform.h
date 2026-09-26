@@ -33,4 +33,9 @@ namespace CoordinateTransform
     [[nodiscard]]
     bool isValidCameraConfig(
         const CameraConfig& config);
+
+    bool matchesImageSize(
+        const CameraConfig& config,
+        int imageWidth,
+        int imageHeight);
 }

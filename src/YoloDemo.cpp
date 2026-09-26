@@ -1,16 +1,21 @@
-#include "YoloDemo.h"
+ï»¿#include "YoloDemo.h"
 
 #include "Logger.h"
 #include "RobotVision.h"
 #include "VisionPipeline.h"
 #include "VisionTypes.h"
 #include "YoloDetector.h"
+#include "TargetProcessing.h"
+#include "CoordinateTransform.h"
+#include "CalibrationLoader.h"
 
 #include <opencv2/core.hpp>
+#include <opencv2/calib3d.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 
+#include <sstream>
 #include <chrono>
 #include <exception>
 #include <iostream>
@@ -37,7 +42,7 @@ void runYoloDemo()
 
     RobotVision vision(cameraConfig, transform);
 
-    // ½« main.cpp ÖĞÍêÕûµÄ YOLO ÑİÊ¾´úÂëÒÆ¶¯µ½ÕâÀï¡£
+    // å°† main.cpp ä¸­å®Œæ•´çš„ YOLO æ¼”ç¤ºä»£ç ç§»åŠ¨åˆ°è¿™é‡Œã€‚
     std::cout
         << "Begin Execution YOLO ONNX Smoke Test"
         << std::endl;
@@ -51,13 +56,13 @@ void runYoloDemo()
         if (yoloFrame.empty())
         {
             Logger::error(
-                "ÎŞ·¨¶ÁÈ¡ YOLO ²âÊÔÍ¼Æ¬");
+                "æ— æ³•è¯»å– YOLO æµ‹è¯•å›¾ç‰‡");
         }
         else
         {
             constexpr int kTargetClassId = 5;
 
-            // ¹¹ÔìÊ±¶ÁÈ¡Ò»´Î ONNX Ä£ĞÍ£¬Ö¸¶¨ÊäÈë 640¡Á640¡¢Ö»±£Áô kTargetClassId
+            // æ„é€ æ—¶è¯»å–ä¸€æ¬¡ ONNX æ¨¡å‹ï¼ŒæŒ‡å®šè¾“å…¥ 640Ã—640ã€åªä¿ç•™ kTargetClassId
             YoloDetector yoloDetector(
                 "models/yolo26n.onnx",
                 640,
@@ -66,18 +71,18 @@ void runYoloDemo()
 
             yoloDetector.setVerbose(true);
 
-            // ½öÕâ¸ö¼ì²âÆ÷´òÓ¡ºòÑ¡¿ò¡¢NMS¡¢Ä¿±êÏ¸½Ú¡£
+            // ä»…è¿™ä¸ªæ£€æµ‹å™¨æ‰“å°å€™é€‰æ¡†ã€NMSã€ç›®æ ‡ç»†èŠ‚ã€‚
             VisionPipeline yoloPipeline(
                 yoloDetector,
                 vision);
 
-            // ÓëÔ­Í¼Æ¬Í¬Ñù¿í¡¢¸ß¡¢ÏñËØÀàĞÍ£¬È«²¿Ìî 0£»ÓÃÀ´ÑéÖ¤¡°ÎŞÄ¿±ê¡±¡£
+            // ä¸åŸå›¾ç‰‡åŒæ ·å®½ã€é«˜ã€åƒç´ ç±»å‹ï¼Œå…¨éƒ¨å¡« 0ï¼›ç”¨æ¥éªŒè¯â€œæ— ç›®æ ‡â€ã€‚
             const cv::Mat blankFrame(
                 yoloFrame.size(),
                 yoloFrame.type(),
                 cv::Scalar(0, 0, 0));
 
-            // Í¬Ò»¸ö¼ì²âÆ÷Á¬ĞøÔËĞĞÈı´Î£¬²¢¼ÇÂ¼Ã¿´ÎÁ÷Ë®ÏßºÄÊ±
+            // åŒä¸€ä¸ªæ£€æµ‹å™¨è¿ç»­è¿è¡Œä¸‰æ¬¡ï¼Œå¹¶è®°å½•æ¯æ¬¡æµæ°´çº¿è€—æ—¶
             constexpr int kRepeatCount = 3;
 
             for (int frameIndex = 0;
@@ -91,7 +96,7 @@ void runYoloDemo()
 
                 if (frameIndex == 1)
                 {
-                    // µÚ 1¡¢3 ´ÎËÍ°ÍÊ¿Í¼£»µÚ 2 ´ÎËÍºÚÍ¼¡£
+                    // ç¬¬ 1ã€3 æ¬¡é€å·´å£«å›¾ï¼›ç¬¬ 2 æ¬¡é€é»‘å›¾ã€‚
                     yoloDetector.setFrame(blankFrame);
                     std::cout << "Input: blank frame\n";
                 }
@@ -103,11 +108,11 @@ void runYoloDemo()
 
                 const auto start =
                     std::chrono::steady_clock::now();
-                // Ö»ÔÚÕâÀïÔËĞĞ£¬ ´òÓ¡ºòÑ¡¿ò¡¢NMS¡¢Ä¿±êÏ¸½Ú
+                // åªåœ¨è¿™é‡Œè¿è¡Œï¼Œ æ‰“å°å€™é€‰æ¡†ã€NMSã€ç›®æ ‡ç»†èŠ‚
                 const std::optional<ValidTarget> yoloBestTarget =
                     yoloPipeline.run();
 
-                // »ñÈ¡ vision.getStatus()¡¢´òÓ¡½á¹û¡¢ÓÃ end-start Ëã±¾´ÎÁ÷Ë®ÏßºÄÊ±¡£
+                // è·å– vision.getStatus()ã€æ‰“å°ç»“æœã€ç”¨ end-start ç®—æœ¬æ¬¡æµæ°´çº¿è€—æ—¶ã€‚
                 std::cout << std::boolalpha
                     << "Has target: "
                     << yoloBestTarget.has_value()
@@ -120,7 +125,7 @@ void runYoloDemo()
                 const auto end =
                     std::chrono::steady_clock::now();
 
-                // ¼ÆËã startµ½ end Ö®¼äÏûºÄµÄÊ±¼ä£¬µ¥Î»ÊÇºÁÃë
+                // è®¡ç®— startåˆ° end ä¹‹é—´æ¶ˆè€—çš„æ—¶é—´ï¼Œå•ä½æ˜¯æ¯«ç§’
                 const double elapsedMs =
                     std::chrono::duration<double, std::milli>(
                         end - start).count();
@@ -180,7 +185,7 @@ void runYoloDemo()
             std::cout
                 << "\n--- Empty frame recovery test ---\n";
 
-            // 1. ÊäÈë¿ÕÍ¼£¬Ó¦±» setFrame ¾Ü¾ø¡£
+            // 1. è¾“å…¥ç©ºå›¾ï¼Œåº”è¢« setFrame æ‹’ç»ã€‚
             bool emptyFrameRejected = false;
 
             try
@@ -203,7 +208,7 @@ void runYoloDemo()
                     "Empty frame was unexpectedly accepted");
             }
 
-            // 2. ´ËÊ±¾ÉÖ¡Ó¦ÒÑÇå³ı£¬Á÷Ë®Ïß²»ÄÜ¼ÌĞøÊ¹ÓÃËü¡£
+            // 2. æ­¤æ—¶æ—§å¸§åº”å·²æ¸…é™¤ï¼Œæµæ°´çº¿ä¸èƒ½ç»§ç»­ä½¿ç”¨å®ƒã€‚
             bool staleFrameBlocked = false;
 
             try
@@ -211,8 +216,8 @@ void runYoloDemo()
                 const auto unexpectedResult =
                     yoloPipeline.run();
 
-                // ÎŞÂÛ·µ»ØÓĞÄ¿±ê»¹ÊÇÎŞÄ¿±ê£¬¶¼²»·ûºÏ±¾´ÎÔ¤ÆÚ£º
-                // Ã»ÓĞÓĞĞ§Í¼Æ¬Ê±£¬Ó¦µ±Ö±½Ó¾Ü¾øÍÆÀí¡£
+                // æ— è®ºè¿”å›æœ‰ç›®æ ‡è¿˜æ˜¯æ— ç›®æ ‡ï¼Œéƒ½ä¸ç¬¦åˆæœ¬æ¬¡é¢„æœŸï¼š
+                // æ²¡æœ‰æœ‰æ•ˆå›¾ç‰‡æ—¶ï¼Œåº”å½“ç›´æ¥æ‹’ç»æ¨ç†ã€‚
                 (void)unexpectedResult;
             }
             catch (const std::runtime_error& error)
@@ -231,7 +236,7 @@ void runYoloDemo()
                     "Pipeline ran after the input frame was invalidated");
             }
 
-            // 3. ÖØĞÂÌá¹©ÓĞĞ§Í¼Æ¬£¬Ó¦ÄÜ¹»Õı³£»Ö¸´¡£
+            // 3. é‡æ–°æä¾›æœ‰æ•ˆå›¾ç‰‡ï¼Œåº”èƒ½å¤Ÿæ­£å¸¸æ¢å¤ã€‚
             yoloDetector.setFrame(yoloFrame);
 
             const std::optional<ValidTarget> recoveredTarget =
@@ -278,14 +283,14 @@ void runYoloDemo()
     {
         Logger::error(
             std::string(
-                "OpenCV DNN Ö´ĞĞÊ§°Ü: ") +
+                "OpenCV DNN æ‰§è¡Œå¤±è´¥: ") +
             error.what());
     }
     catch (const std::exception& error)
     {
         Logger::error(
             std::string(
-                "YOLO Smoke Test Ê§°Ü: ") +
+                "YOLO Smoke Test å¤±è´¥: ") +
             error.what());
     }
 }
@@ -297,7 +302,7 @@ void runYoloVideoDemo()
 
     if (!video.isOpened())
     {
-        std::cerr << "ÎŞ·¨´ò¿ªÊÓÆµ\n";
+        std::cerr << "æ— æ³•æ‰“å¼€è§†é¢‘\n";
         return;
     }
 
@@ -310,20 +315,11 @@ void runYoloVideoDemo()
         640,
         kCarClassId);
 
-    // ÔİÊ±ÑØÓÃÑ§Ï°ÓÃµÄÏà»ú²ÎÊıºÍ±ä»»¾ØÕó¡£
+    // æš‚æ—¶æ²¿ç”¨å­¦ä¹ ç”¨çš„ç›¸æœºå‚æ•°å’Œå˜æ¢çŸ©é˜µã€‚
     const CameraConfig camera{
         2.0, 800.0, 800.0, 640.0, 360.0
     };
 
-    const TransformMatrix transform{ {
-        {{1.0, 0.0, 0.0, 0.7}},
-        {{0.0, 1.0, 0.0, 2.1}},
-        {{0.0, 0.0, 1.0, 3.0}},
-        {{0.0, 0.0, 0.0, 1.0}}
-    } };
-
-    RobotVision vision(camera, transform);
-    VisionPipeline pipeline(detector, vision);
 
     const std::string windowName = "YOLO car detection";
 
@@ -345,9 +341,9 @@ void runYoloVideoDemo()
         if (!video.read(frame) || frame.empty())
         {
             std::cout
-                << "ÊÓÆµ½áÊø»òÎŞ·¨¶ÁÈ¡µÚ "
+                << "è§†é¢‘ç»“æŸæˆ–æ— æ³•è¯»å–ç¬¬ "
                 << frameIndex + 1
-                << " Ö¡\n";
+                << " å¸§\n";
             break;
         }
 
@@ -356,8 +352,12 @@ void runYoloVideoDemo()
         const auto start =
             std::chrono::steady_clock::now();
 
-        const std::optional<ValidTarget> bestTarget =
-            pipeline.run();
+        // å½“å‰è§†é¢‘æ²¡æœ‰å¯¹åº”çš„ç›¸æœºæ ‡å®šå‚æ•°ï¼šåªæ£€æµ‹äºŒç»´ç›®æ ‡ã€‚
+        const std::vector<Target> detectedTargets =
+            detector.detect();
+
+        const Target* bestTarget =
+            TargetProcessing::selectBestTarget(detectedTargets);
 
         const auto end =
             std::chrono::steady_clock::now();
@@ -374,7 +374,7 @@ void runYoloVideoDemo()
 
         if (bestTarget)
         {
-            const Target& target = bestTarget->target;
+            const Target& target = *bestTarget;
 
             std::cout
                 << ", classId=" << target.classId
@@ -392,10 +392,10 @@ void runYoloVideoDemo()
             std::cout << ", no car";
         }
 
-        // Ò»Ö¡µÄÈÕÖ¾µ½ÕâÀï½áÊø£»²»ÄÜÔÙÓĞµÚ¶ş´¦´òÓ¡ ", no car"¡£
+        // ä¸€å¸§çš„æ—¥å¿—åˆ°è¿™é‡Œç»“æŸï¼›ä¸èƒ½å†æœ‰ç¬¬äºŒå¤„æ‰“å° ", no car"ã€‚
         std::cout << '\n';
 
-        // ÏÔÊ¾ºÍ°´¼ü¼ì²é·ÅÔÚ if/else Íâ£ºÎŞ³µÖ¡Ò²ÕÕ³£¸üĞÂ´°¿Ú¡£
+        // æ˜¾ç¤ºå’ŒæŒ‰é”®æ£€æŸ¥æ”¾åœ¨ if/else å¤–ï¼šæ— è½¦å¸§ä¹Ÿç…§å¸¸æ›´æ–°çª—å£ã€‚
         const cv::Mat debugFrame = detector.getLastDebugFrame();
 
         if (!debugFrame.empty())
@@ -413,4 +413,79 @@ void runYoloVideoDemo()
     }
 
     cv::destroyWindow(windowName);
+}
+
+void runCalibrationFileDemo(const std::string& path)
+{
+    const std::optional<CameraConfig> config =
+        CalibrationLoader::load(path, 2.0);
+
+    if (!config)
+    {
+        return;
+    }
+
+    std::cout << "ç»ƒä¹ æ ‡å®šæ–‡ä»¶: "
+        << config->imageWidth << 'x'
+        << config->imageHeight
+        << ", fx=" << config->fx
+        << ", fy=" << config->fy
+        << ", cx=" << config->cx
+        << ", cy=" << config->cy << '\n';
+
+    // std::boolalphaï¼šè®© cout æ‰“å°true/falseè€Œä¸æ˜¯ 1/0
+    std::cout << std::boolalpha
+        << "åŒ¹é… 640x480: "
+        << CoordinateTransform::matchesImageSize(
+            *config, 640, 480)
+        << ", åŒ¹é… 1920x1080: "
+        << CoordinateTransform::matchesImageSize(
+            *config, 1920, 1080)
+        << '\n';
+
+    // æ„é€ 3x3ç›¸æœºå†…å‚çŸ©é˜µ cameraMatrixï¼ˆé’ˆå­”æ¨¡å‹ï¼‰
+    const cv::Matx33d cameraMatrix{
+    config->fx, 0.0,        config->cx,
+    0.0,        config->fy, config->cy,
+    0.0,        0.0,        1.0
+    };
+
+    // ç»ƒä¹ ç”¨ï¼šäº”ä¸ªç•¸å˜ç³»æ•°å…¨ä¸ºé›¶ã€‚dist = [0,0,0,0,0]
+    cv::Mat distortion =
+        cv::Mat::zeros(1, 5, CV_64F);
+    // ç»ƒä¹ å€¼ï¼šåªè®¾ç½®ç¬¬ä¸€ä¸ªå¾„å‘ç•¸å˜ç³»æ•° k1ã€‚
+    for (int index = 0; index < 5; ++index)
+    {
+        // OpenCV Mat çš„`.at<T>(row,col)`ï¼Œ**è¯»å– / ä¿®æ”¹çŸ©é˜µæŒ‡å®šä½ç½®å…ƒç´ **
+        // è¿™é‡Œ0 = ç¬¬0è¡Œ,index = ä¾æ¬¡ç¬¬ 0ã€1ã€2ã€3ã€4 åˆ—
+        distortion.at<double>(0, index) =
+            config->distortionCoefficients[index];
+    }
+
+    // è¾“å…¥åƒç´ åæ ‡ï¼šå›¾åƒä¸Šåƒç´ ç‚¹ å¸¦Få°±æ˜¯16ä½çš„æµ®ç‚¹æ•°
+    const std::vector<cv::Point2f> pixels{
+        {400.0F, 280.0F}
+    };
+
+    std::vector<cv::Point2f> normalizedPoints;
+
+    // æ ¸å¿ƒå‡½æ•° undistortPoints
+    // 1:å¦‚æœæœ‰ç•¸å˜ï¼Œå…ˆå»é™¤ç•¸å˜ï¼ˆè¿™é‡Œ dist å…¨ 0ï¼Œæ‰€ä»¥è¿™ä¸€æ­¥å•¥ä¹Ÿä¸åšï¼‰
+    // 2:æŠŠåƒç´ åæ ‡ï¼ŒæŠ•å½±åˆ°å½’ä¸€åŒ–ç›¸æœºå¹³é¢ Z=1
+    cv::undistortPoints(
+        pixels,
+        normalizedPoints,
+        cameraMatrix,
+        distortion);
+
+    std::cout << "å½’ä¸€åŒ–ç›¸æœºåæ ‡: ("
+        << normalizedPoints[0].x << ", "
+        << normalizedPoints[0].y << ")\n";
+
+    const double depthMeters = 2.0; // ç»ƒä¹ å€¼ï¼Œä¸æ˜¯æ·±åº¦ç›¸æœºè¯»æ•°
+
+    std::cout << "ç»ƒä¹ ç›¸æœºä¸‰ç»´ç‚¹: ("
+        << normalizedPoints[0].x * depthMeters << ", "
+        << normalizedPoints[0].y * depthMeters << ", "
+        << depthMeters << ")\n";
 }
