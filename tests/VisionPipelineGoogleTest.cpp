@@ -214,7 +214,7 @@ TEST(
     VisionPipeline pipeline(detector, vision);
 
     const std::optional<ValidTarget> result =
-        pipeline.runWithDepth(depthFrame);
+        pipeline.runWithDepth(depthFrame, 3, 2, true);
 
     ASSERT_TRUE(result.has_value());
 
@@ -256,7 +256,7 @@ TEST(
     VisionPipeline pipeline(detector, vision);
 
     const std::optional<ValidTarget> result =
-        pipeline.runWithDepth(depthFrame);
+        pipeline.runWithDepth(depthFrame, 3, 2, true);
 
     EXPECT_FALSE(result.has_value());
     EXPECT_EQ(
@@ -305,4 +305,118 @@ TEST(DepthSamplerTest, AttachValidDepthRecoversCenterHole)
     // 中心为 0；邻域五个有效值排序后为
     // 1000、2000、3000、4000、6000 mm，中位数为 3000 mm。
     EXPECT_DOUBLE_EQ(*result[0].depthMeters, 3.0);
+}
+
+TEST(VisionPipelineTest, RejectsDepthNotAlignedToColor)
+{
+    const DepthFrame depthFrame{
+        2, 2,
+        {2000, 2000,
+         2000, 2000}
+    };
+
+    MockDetector detector({
+        {1, 0.90, 1.0, 0.0, false}
+        });
+
+    const CameraConfig camera{
+        2.0, 2.0, 2.0, 0.0, 0.0
+    };
+
+    RobotVision vision(camera, kIdentityTransform);
+    VisionPipeline pipeline(detector, vision);
+
+    const auto rejected =
+        pipeline.runWithDepth(depthFrame, 2, 2, false);
+    EXPECT_FALSE(rejected.has_value());
+
+    const auto accepted =
+        pipeline.runWithDepth(depthFrame, 2, 2, true);
+    ASSERT_TRUE(accepted.has_value());
+    ASSERT_TRUE(accepted->target.depthMeters.has_value());
+    EXPECT_DOUBLE_EQ(*accepted->target.depthMeters, 2.0);
+}
+
+TEST(VisionPipelineTest, UsesClosestSynchronizedDepth)
+{
+    const std::vector<TimedDepthFrame> depths{
+        {
+            FrameTimestamp{94.0, ClockDomain::VideoTimeline},
+            {2, 2, {2000, 2000, 2000, 2000}}
+        },
+        {
+            FrameTimestamp{108.0, ClockDomain::VideoTimeline},
+            {2, 2, {3000, 3000, 3000, 3000}}
+        }
+    };
+
+    MockDetector detector({
+        {1, 0.90, 1.0, 0.0, false}
+        });
+
+    const CameraConfig camera{
+        2.0, 2.0, 2.0, 0.0, 0.0
+    };
+
+    RobotVision vision(camera, kIdentityTransform);
+    VisionPipeline pipeline(detector, vision);
+
+    const DepthFusionResult result =
+        pipeline.runWithSyncedDepth(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0,
+            2, 2, true);
+
+    ASSERT_EQ(result.status, DepthFusionStatus::OK);
+    ASSERT_TRUE(result.target.has_value());
+    ASSERT_TRUE(result.target->target.depthMeters.has_value());
+    EXPECT_DOUBLE_EQ(*result.target->target.depthMeters, 2.0);
+    EXPECT_DOUBLE_EQ(result.target->cameraPoint.Z, 2.0);
+}
+
+TEST(VisionPipelineTest, DistinguishesTimeAndAlignmentRejection)
+{
+    const DepthFrame depth{
+        2, 2,
+        {2000, 2000,
+         2000, 2000}
+    };
+
+    MockDetector detector({
+        {1, 0.90, 1.0, 0.0, false}
+        });
+
+    const CameraConfig camera{
+        2.0, 2.0, 2.0, 0.0, 0.0
+    };
+
+    RobotVision vision(camera, kIdentityTransform);
+    VisionPipeline pipeline(detector, vision);
+
+    const std::vector<TimedDepthFrame> wrongClock{
+        {FrameTimestamp{94.0, ClockDomain::LocalSteady}, depth}
+    };
+
+    const DepthFusionResult timeRejected =
+        pipeline.runWithSyncedDepth(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            wrongClock, 10.0, 2, 2, true);
+
+    EXPECT_EQ(timeRejected.status, DepthFusionStatus::NoMatchedDepth);
+    EXPECT_FALSE(timeRejected.target.has_value());
+
+    const std::vector<TimedDepthFrame> matchingClock{
+        {FrameTimestamp{94.0, ClockDomain::VideoTimeline}, depth}
+    };
+
+    const DepthFusionResult alignmentRejected =
+        pipeline.runWithSyncedDepth(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            matchingClock, 10.0, 2, 2, false);
+
+    EXPECT_EQ(
+        alignmentRejected.status,
+        DepthFusionStatus::DepthNotAligned);
+    EXPECT_FALSE(alignmentRejected.target.has_value());
 }

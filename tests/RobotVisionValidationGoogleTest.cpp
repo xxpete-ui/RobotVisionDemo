@@ -483,14 +483,17 @@ TEST(CameraConfigValidationTest, RejectsNonFiniteDistortion)
 TEST(FrameSyncTest, SelectsClosestDepthWithinThreshold)
 {
     const std::vector<TimedDepthFrame> depths{
-        {94.0, {}},
-        {108.0, {}}
+        {FrameTimestamp{94.0, ClockDomain::VideoTimeline}, {}},
+        {FrameTimestamp{108.0, ClockDomain::VideoTimeline}, {}}
     };
 
     const TimedDepthFrame* result =
-        findClosestDepthFrame(100.0, depths, 10.0);
+        findClosestDepthFrame(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0);
 
-    ASSERT_NE(result, nullptr); //断言 val1 != val2
+    ASSERT_NE(result, nullptr);
     EXPECT_EQ(result, &depths[0]);
 }
 
@@ -500,12 +503,15 @@ TEST(FrameSyncTest, SkipsInvalidDepthTimestamp)
         std::numeric_limits<double>::quiet_NaN();
 
     const std::vector<TimedDepthFrame> depths{
-        {nan, {}},
-        {94.0, {}}
+        {FrameTimestamp{nan, ClockDomain::VideoTimeline}, {}},
+        {FrameTimestamp{94.0, ClockDomain::VideoTimeline}, {}}
     };
 
     const TimedDepthFrame* result =
-        findClosestDepthFrame(100.0, depths, 10.0);
+        findClosestDepthFrame(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0);
 
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result, &depths[1]);
@@ -514,12 +520,54 @@ TEST(FrameSyncTest, SkipsInvalidDepthTimestamp)
 TEST(FrameSyncTest, ReturnsNullWhenAllDepthFramesExceedThreshold)
 {
     const std::vector<TimedDepthFrame> depths{
-        {88.0, {}},
-        {118.0, {}}
+        {FrameTimestamp{88.0, ClockDomain::VideoTimeline}, {}},
+        {FrameTimestamp{118.0, ClockDomain::VideoTimeline}, {}}
     };
 
     const TimedDepthFrame* result =
-        findClosestDepthFrame(100.0, depths, 10.0);
+        findClosestDepthFrame(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0);
 
     EXPECT_EQ(result, nullptr);
+}
+
+TEST(FrameSyncTest, RejectsDifferentClockDomains)
+{
+    const std::vector<TimedDepthFrame> depths{
+        {FrameTimestamp{94.0, ClockDomain::LocalSteady}, {}}
+    };
+
+    const TimedDepthFrame* result =
+        findClosestDepthFrame(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0);
+
+    EXPECT_EQ(result, nullptr);
+}
+
+TEST(FrameSyncTest, RejectsDifferentImageSizes)
+{
+    const DepthFrame depth{ 2, 2, {1000, 1000, 1000, 1000}};
+
+    EXPECT_FALSE(canSampleAtColorPixels(
+        depth, 3, 2, true));
+}
+
+TEST(FrameSyncTest, RejectsDepthNotAlignedToColor)
+{
+    const DepthFrame depth{ 2, 2, {1000, 1000, 1000, 1000}};
+
+    EXPECT_FALSE(canSampleAtColorPixels(
+        depth, 2, 2, false));
+}
+
+TEST(FrameSyncTest, AcceptsAlignedDepthWithMatchingImageSize)
+{
+    const DepthFrame depth{ 2, 2, {1000, 2000, 3000, 4000} };
+
+    EXPECT_TRUE(canSampleAtColorPixels(
+        depth, 2, 2, true));
 }

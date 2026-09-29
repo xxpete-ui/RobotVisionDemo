@@ -1,5 +1,5 @@
 #include "VisionPipeline.h"
-
+#include "FrameSync.h"
 #include "IDetector.h"
 #include "RobotVision.h"
 #include "DepthSampler.h"
@@ -23,8 +23,20 @@ std::optional<ValidTarget> VisionPipeline::run()
 }
 
 std::optional<ValidTarget> VisionPipeline::runWithDepth(
-    const DepthFrame& depthFrame)
+    const DepthFrame& depthFrame,
+    int colorWidth,
+    int colorHeight,
+    bool depthAlignedToColor)
 {
+    if (!canSampleAtColorPixels(
+        depthFrame,
+        colorWidth,
+        colorHeight,
+        depthAlignedToColor))
+    {
+        return std::nullopt;
+    }
+
     // 1. 检测器产生这一帧的全部目标。
     const std::vector<Target> detectedTargets =
         detector_.detect();
@@ -38,4 +50,52 @@ std::optional<ValidTarget> VisionPipeline::runWithDepth(
 
     // 3. 对留下的目标计算相机/机器人坐标并选择最佳目标。
     return robotVision_.run(targetsWithDepth);
+}
+
+DepthFusionResult VisionPipeline::runWithSyncedDepth(
+    FrameTimestamp colorTimestamp,
+    const std::vector<TimedDepthFrame>& depthFrames,
+    double maxDeltaMs,
+    int colorWidth,
+    int colorHeight,
+    bool depthAlignedToColor)
+{
+    {
+        // 时间配对
+        const TimedDepthFrame* matchedDepth =
+            findClosestDepthFrame(
+                colorTimestamp,
+                depthFrames,
+                maxDeltaMs);
+
+        if (matchedDepth == nullptr)
+        {
+            return { DepthFusionStatus::NoMatchedDepth, std::nullopt };
+        }
+
+        // 空间检查
+        if (!canSampleAtColorPixels(
+            matchedDepth->frame,
+            colorWidth,
+            colorHeight,
+            depthAlignedToColor))
+        {
+            return { DepthFusionStatus::DepthNotAligned, std::nullopt };
+        }
+
+        // 原有检测与三维计算
+        const std::optional<ValidTarget> target =
+            runWithDepth(
+                matchedDepth->frame,
+                colorWidth,
+                colorHeight,
+                depthAlignedToColor);
+
+        if (!target)
+        {
+            return { DepthFusionStatus::VisionProcessingFailed, std::nullopt };
+        }
+
+        return { DepthFusionStatus::OK, target };
+    }
 }
