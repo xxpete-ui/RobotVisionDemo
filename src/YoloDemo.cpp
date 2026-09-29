@@ -332,6 +332,20 @@ void runYoloVideoDemo()
         960,
         540);
 
+    // 从视频文件读取标称帧率，用于估算恒定帧率录像中的帧位置。
+    const double videoFps = video.get(cv::CAP_PROP_FPS);
+
+    if (!std::isfinite(videoFps) || videoFps <= 0.0)
+    {
+        std::cerr << "视频帧率无效，无法计算录像时间线\n";
+        return;
+    }
+
+    // 本次视频处理的本地计时起点。
+    // 后面用“读到帧的时刻 - 这个起点”表示相对时间。
+    const auto sessionStart =
+        std::chrono::steady_clock::now();
+
     for (int frameIndex = 0;
         frameIndex < kMaxFrames;
         ++frameIndex)
@@ -346,6 +360,24 @@ void runYoloVideoDemo()
                 << " 帧\n";
             break;
         }
+
+        // 1. read 成功返回，说明这一帧已经读入 frame。
+        // 2. 立即记录本地读取完成时刻。
+        // 3. 这不是录像中的拍摄时间，也不是相机曝光时间。
+        const auto frameReadAt =
+            std::chrono::steady_clock::now();
+
+        // 时间点相减得到时间间隔。
+        // duration<double, std::milli> 将间隔表达为浮点毫秒。
+        // count() 取出具体数值。
+        const double readAtMs =
+            std::chrono::duration<double, std::milli>(
+                frameReadAt - sessionStart).count();
+
+        // frameIndex 从 0 开始：第 1 帧对应录像时间线的 0 ms。
+        // 仅按标称 FPS 估算，适用于这里的恒定帧率练习。
+        const double videoTimeMs =
+            static_cast<double>(frameIndex) * 1000.0 / videoFps;
 
         detector.setFrame(frame);
 
@@ -369,8 +401,10 @@ void runYoloVideoDemo()
         std::cout
             << "Frame " << frameIndex + 1
             << ": " << frame.cols << "x" << frame.rows
-            << ", time=" << elapsedMs << " ms"
-            << ", cars=" << detector.getLastDetectionCount();;
+            << ", read_at=" << readAtMs << " ms"
+            << ", video_time=" << videoTimeMs << " ms"
+            << ", processing=" << elapsedMs << " ms"
+            << ", cars=" << detector.getLastDetectionCount();
 
         if (bestTarget)
         {

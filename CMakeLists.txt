@@ -114,6 +114,7 @@ add_library(
     src/TransformUtils.cpp
     src/MockDetector.cpp
     src/VisionPipeline.cpp
+    src/FrameSync.cpp
 )
 
 target_include_directories(

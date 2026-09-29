@@ -1,4 +1,5 @@
 ﻿#include "RobotVision.h"
+#include "FrameSync.h"
 #include <gtest/gtest.h>
 #include <optional>
 #include <vector>
@@ -477,4 +478,48 @@ TEST(CameraConfigValidationTest, RejectsNonFiniteDistortion)
 
     EXPECT_FALSE(
         CoordinateTransform::isValidCameraConfig(camera));
+}
+
+TEST(FrameSyncTest, SelectsClosestDepthWithinThreshold)
+{
+    const std::vector<TimedDepthFrame> depths{
+        {94.0, {}},
+        {108.0, {}}
+    };
+
+    const TimedDepthFrame* result =
+        findClosestDepthFrame(100.0, depths, 10.0);
+
+    ASSERT_NE(result, nullptr); //断言 val1 != val2
+    EXPECT_EQ(result, &depths[0]);
+}
+
+TEST(FrameSyncTest, SkipsInvalidDepthTimestamp)
+{
+    const double nan =
+        std::numeric_limits<double>::quiet_NaN();
+
+    const std::vector<TimedDepthFrame> depths{
+        {nan, {}},
+        {94.0, {}}
+    };
+
+    const TimedDepthFrame* result =
+        findClosestDepthFrame(100.0, depths, 10.0);
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result, &depths[1]);
+}
+
+TEST(FrameSyncTest, ReturnsNullWhenAllDepthFramesExceedThreshold)
+{
+    const std::vector<TimedDepthFrame> depths{
+        {88.0, {}},
+        {118.0, {}}
+    };
+
+    const TimedDepthFrame* result =
+        findClosestDepthFrame(100.0, depths, 10.0);
+
+    EXPECT_EQ(result, nullptr);
 }
