@@ -99,3 +99,73 @@ DepthFusionResult VisionPipeline::runWithSyncedDepth(
         return { DepthFusionStatus::OK, target };
     }
 }
+
+DepthFusionResult VisionPipeline::runWithSyncedDepthAndTransform(
+    FrameTimestamp colorTimestamp,
+    const std::vector<TimedDepthFrame>& depthFrames,
+    double maxDepthDeltaMs,
+    const std::vector<TimedTransform>& transforms,
+    double maxTransformDeltaMs,
+    int colorWidth,
+    int colorHeight,
+    bool depthAlignedToColor)
+{
+    // 1. Match depth to the color frame.
+    const TimedDepthFrame* matchedDepth =
+        findClosestDepthFrame(
+            colorTimestamp,
+            depthFrames,
+            maxDepthDeltaMs);
+
+    if (matchedDepth == nullptr)
+    {
+        return { DepthFusionStatus::NoMatchedDepth, std::nullopt };
+    }
+
+    // 2. Check whether color pixels can index this depth frame.
+    if (!canSampleAtColorPixels(
+        matchedDepth->frame,
+        colorWidth,
+        colorHeight,
+        depthAlignedToColor))
+    {
+        return { DepthFusionStatus::DepthNotAligned, std::nullopt };
+    }
+
+    // 3. Match the transform to the same color frame.
+    const TimedTransform* matchedTransform =
+        findClosestTransform(
+            colorTimestamp,
+            transforms,
+            maxTransformDeltaMs);
+
+    if (matchedTransform == nullptr)
+    {
+        return { DepthFusionStatus::NoMatchedTransform, std::nullopt };
+    }
+
+    // 4. Detect targets and attach sampled depth.
+    const std::vector<Target> detectedTargets =
+        detector_.detect();
+
+    const std::vector<Target> targetsWithDepth =
+        DepthSampler::attachValidDepth(
+            detectedTargets,
+            matchedDepth->frame);
+
+    // 5. Calculate coordinates using the selected transform.
+    const std::optional<ValidTarget> target =
+        robotVision_.runWithTransform(
+            targetsWithDepth,
+            matchedTransform->cameraToRobot);
+
+    if (!target)
+    {
+        return {
+            DepthFusionStatus::VisionProcessingFailed,
+            std::nullopt
+        };
+    }
+
+    return { DepthFusionStatus::OK, target };
+}

@@ -15,7 +15,8 @@ enum class DepthFusionStatus
     OK,              // 时间和空间检查通过，产生三维目标
     NoMatchedDepth,  // 没有符合时间条件的深度帧
     DepthNotAligned, // 选中了深度帧，但不能按彩色图像素坐标采样
-    VisionProcessingFailed    // 前两关通过，检测或深度采样后仍没有有效目标
+    VisionProcessingFailed,    // 前两关通过，检测或深度采样后仍没有有效目标
+    NoMatchedTransform
 };
 
 struct DepthFusionResult
@@ -43,6 +44,16 @@ public:
         FrameTimestamp colorTimestamp,
         const std::vector<TimedDepthFrame>& depthFrames,
         double maxDeltaMs,
+        int colorWidth,
+        int colorHeight,
+        bool depthAlignedToColor);
+
+    DepthFusionResult runWithSyncedDepthAndTransform(
+        FrameTimestamp colorTimestamp,
+        const std::vector<TimedDepthFrame>& depthFrames,
+        double maxDepthDeltaMs,
+        const std::vector<TimedTransform>& transforms,
+        double maxTransformDeltaMs,
         int colorWidth,
         int colorHeight,
         bool depthAlignedToColor);

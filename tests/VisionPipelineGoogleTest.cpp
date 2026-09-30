@@ -420,3 +420,108 @@ TEST(VisionPipelineTest, DistinguishesTimeAndAlignmentRejection)
         DepthFusionStatus::DepthNotAligned);
     EXPECT_FALSE(alignmentRejected.target.has_value());
 }
+
+TEST(VisionPipelineTest, UsesSynchronizedDepthAndTransform)
+{
+    const std::vector<TimedDepthFrame> depths{
+        {
+            FrameTimestamp{94.0, ClockDomain::VideoTimeline},
+            {2, 2, {2000, 2000, 2000, 2000}}
+        },
+        {
+            FrameTimestamp{108.0, ClockDomain::VideoTimeline},
+            {2, 2, {3000, 3000, 3000, 3000}}
+        }
+    };
+
+    TransformMatrix transform94 = kIdentityTransform;
+    transform94[0][3] = 0.7;
+
+    TransformMatrix transform108 = kIdentityTransform;
+    transform108[0][3] = 1.0;
+
+    const std::vector<TimedTransform> transforms{
+        {
+            FrameTimestamp{94.0, ClockDomain::VideoTimeline},
+            transform94
+        },
+        {
+            FrameTimestamp{108.0, ClockDomain::VideoTimeline},
+            transform108
+        }
+    };
+
+    MockDetector detector({
+        {1, 0.90, 1.0, 0.0, false}
+        });
+
+    const CameraConfig camera{
+        5.0, 2.0, 2.0, 0.0, 0.0
+    };
+
+    RobotVision vision(camera, kIdentityTransform);
+    VisionPipeline pipeline(detector, vision);
+
+    const DepthFusionResult result =
+        pipeline.runWithSyncedDepthAndTransform(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0,
+            transforms,
+            10.0,
+            2, 2, true);
+
+    ASSERT_EQ(result.status, DepthFusionStatus::OK);
+    ASSERT_TRUE(result.target.has_value());
+    ASSERT_TRUE(result.target->target.depthMeters.has_value());
+
+    EXPECT_DOUBLE_EQ(*result.target->target.depthMeters, 2.0);
+
+    EXPECT_NEAR(result.target->cameraPoint.X, 1.0, 1e-12);
+    EXPECT_NEAR(result.target->cameraPoint.Y, 0.0, 1e-12);
+    EXPECT_NEAR(result.target->cameraPoint.Z, 2.0, 1e-12);
+
+    EXPECT_NEAR(result.target->robotPoint.X, 1.7, 1e-12);
+    EXPECT_NEAR(result.target->robotPoint.Y, 0.0, 1e-12);
+    EXPECT_NEAR(result.target->robotPoint.Z, 2.0, 1e-12);
+}
+
+TEST(VisionPipelineTest, RejectsTransformOutsideTimeWindow)
+{
+    const std::vector<TimedDepthFrame> depths{
+        {
+            FrameTimestamp{100.0, ClockDomain::VideoTimeline},
+            {2, 2, {2000, 2000, 2000, 2000}}
+        }
+    };
+
+    const std::vector<TimedTransform> transforms{
+        {
+            FrameTimestamp{130.0, ClockDomain::VideoTimeline},
+            kIdentityTransform
+        }
+    };
+
+    MockDetector detector({
+        {1, 0.90, 1.0, 0.0, false}
+        });
+
+    const CameraConfig camera{
+        2.0, 2.0, 2.0, 0.0, 0.0
+    };
+
+    RobotVision vision(camera, kIdentityTransform);
+    VisionPipeline pipeline(detector, vision);
+
+    const DepthFusionResult result =
+        pipeline.runWithSyncedDepthAndTransform(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0,
+            transforms,
+            10.0,
+            2, 2, true);
+
+    EXPECT_EQ(result.status, DepthFusionStatus::NoMatchedTransform);
+    EXPECT_FALSE(result.target.has_value());
+}

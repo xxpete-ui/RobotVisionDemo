@@ -17,6 +17,11 @@ public:
     [[nodiscard]]
     VisionStatus getStatus() const;
 
+    [[nodiscard]]
+    std::optional<ValidTarget> runWithTransform(
+        const std::vector<Target>& targets,
+        const TransformMatrix& transform);
+
 private:
     CameraConfig cameraConfig;
     TransformMatrix T{};
@@ -27,7 +32,10 @@ private:
     bool checkTransform() const;
 
     std::optional<ValidTarget> runVisionPipeline(
-        const std::vector<Target>& targets) const;
+        const std::vector<Target>& targets,
+        const TransformMatrix& transform) const;
 
-    std::vector<ValidTarget> processTargets(const std::vector<Target>& targets) const;
+    std::vector<ValidTarget> processTargets(
+        const std::vector<Target>& targets,
+        const TransformMatrix& transform) const;
 };

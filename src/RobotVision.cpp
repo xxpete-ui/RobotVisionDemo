@@ -6,9 +6,9 @@
 #include <optional>
 
 
-
 std::vector<ValidTarget> RobotVision::processTargets(
-    const std::vector<Target>& targets) const
+    const std::vector<Target>& targets,
+    const TransformMatrix& transform) const
 {
     std::vector<ValidTarget> validTargets;
     validTargets.reserve(targets.size());
@@ -20,6 +20,7 @@ std::vector<ValidTarget> RobotVision::processTargets(
         {
             continue;
         }
+        // 作用域 cameraPoint 只在花括号内可见
         const std::optional<CameraPoint> cameraPoint =
             CoordinateTransform::targetToCamera(
                 target,
@@ -34,7 +35,8 @@ std::vector<ValidTarget> RobotVision::processTargets(
         const RobotPoint robotPoint =
             CoordinateTransform::cameraToRobot(
                 *cameraPoint,
-                T);
+                transform);
+
         validTargets.push_back({
             target,
             *cameraPoint,
@@ -45,12 +47,12 @@ std::vector<ValidTarget> RobotVision::processTargets(
 
 }
 
-std::optional<ValidTarget>
-RobotVision::runVisionPipeline(
-    const std::vector<Target>& targets) const
+std::optional<ValidTarget>RobotVision::runVisionPipeline(
+    const std::vector<Target>& targets,
+    const TransformMatrix& transform) const
 {
     const std::vector<ValidTarget> validTargets =
-        processTargets(targets);
+        processTargets(targets, transform);
 
     const ValidTarget* selectedTarget =
         TargetProcessing::selectBestValidTarget(
@@ -92,7 +94,7 @@ std::optional<ValidTarget> RobotVision::run(
     }
 
     const std::optional<ValidTarget> selectedTarget =
-        runVisionPipeline(targets);
+        runVisionPipeline(targets, T);
 
     if (!selectedTarget)
     {
@@ -119,4 +121,35 @@ bool RobotVision::checkTransform() const
 VisionStatus RobotVision::getStatus() const
 {
     return status;
+}
+
+std::optional<ValidTarget> RobotVision::runWithTransform(
+    const std::vector<Target>& targets,
+    const TransformMatrix& transform)
+{
+    // Preserve permanent initialization errors.
+    if (status == VisionStatus::InvalidCameraConfig ||
+        status == VisionStatus::InvalidTransform)
+    {
+        return std::nullopt;
+    }
+
+    // Reject this frame, but allow a later valid frame to recover.
+    if (!TransformUtils::isValidTransformMatrix(transform))
+    {
+        status = VisionStatus::InvalidFrameTransform;
+        return std::nullopt;
+    }
+
+    const std::optional<ValidTarget> selectedTarget =
+        runVisionPipeline(targets, transform);
+
+    if (!selectedTarget)
+    {
+        status = VisionStatus::NoValidTarget;
+        return std::nullopt;
+    }
+
+    status = VisionStatus::OK;
+    return selectedTarget;
 }

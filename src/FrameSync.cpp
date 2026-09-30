@@ -72,3 +72,48 @@ bool canSampleAtColorPixels(
 
     return depth.depthMillimeters.size() == expectedSize;
 }
+
+const TimedTransform* findClosestTransform(
+    FrameTimestamp imageTimestamp,
+    const std::vector<TimedTransform>& transforms,
+    double maxDeltaMs)
+{
+    if (!std::isfinite(imageTimestamp.valueMs) ||
+        !std::isfinite(maxDeltaMs) ||
+        maxDeltaMs < 0.0)
+    {
+        return nullptr;
+    }
+
+    const TimedTransform* best = nullptr;
+    double bestDeltaMs = maxDeltaMs;
+
+    for (const auto& transform : transforms)
+    {
+        // 时间来源不同，或者这张深度帧的时间无效：
+        // 只跳过当前候选，继续检查后面的帧。
+        if (transform.timestamp.domain != imageTimestamp.domain ||
+            !std::isfinite(transform.timestamp.valueMs))
+        {
+            continue;
+        }
+
+        const double deltaMs =
+            std::abs(
+                transform.timestamp.valueMs -
+                imageTimestamp.valueMs);
+
+        if (deltaMs > maxDeltaMs)
+        {
+            continue;
+        }
+
+        if (best == nullptr || deltaMs < bestDeltaMs)
+        {
+            best = &transform;
+            bestDeltaMs = deltaMs;
+        }
+    }
+
+    return best;
+}

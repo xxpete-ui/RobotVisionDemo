@@ -71,5 +71,6 @@ enum class VisionStatus {
     OK,
     InvalidCameraConfig,
     InvalidTransform,
-    NoValidTarget
+    NoValidTarget,
+    InvalidFrameTransform
 };

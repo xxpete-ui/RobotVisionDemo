@@ -571,3 +571,153 @@ TEST(FrameSyncTest, AcceptsAlignedDepthWithMatchingImageSize)
     EXPECT_TRUE(canSampleAtColorPixels(
         depth, 2, 2, true));
 }
+
+TEST(FrameSyncTest, SelectsClosestTransform)
+{
+    const std::vector<TimedTransform> transforms{
+        {
+            FrameTimestamp{94.0, ClockDomain::VideoTimeline},
+            TransformMatrix{}
+        },
+        {
+            FrameTimestamp{108.0, ClockDomain::VideoTimeline},
+            TransformMatrix{}
+        },
+        {
+            FrameTimestamp{130.0, ClockDomain::VideoTimeline},
+            TransformMatrix{}
+        }
+    };
+
+    const TimedTransform* result =
+        findClosestTransform(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            transforms,
+            10.0);
+
+    ASSERT_NE(result, nullptr);  // 断言a!= b
+    EXPECT_EQ(result, &transforms[0]);
+}
+
+TEST(FrameSyncTest, RejectsTransformOutsideTimeWindow)
+{
+    const std::vector<TimedTransform> transforms{
+        {
+            FrameTimestamp{130.0, ClockDomain::VideoTimeline},
+            TransformMatrix{}
+        }
+    };
+
+    const TimedTransform* result =
+        findClosestTransform(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            transforms,
+            10.0);
+
+    EXPECT_EQ(result, nullptr);
+}
+
+TEST(FrameSyncTest, UsesSelectedTransformForRobotCoordinates)
+{
+    TransformMatrix transform94 = kIdentityTransform;
+    transform94[0][3] = 0.7;
+
+    TransformMatrix transform108 = kIdentityTransform;
+    transform108[0][3] = 1.0;
+
+    const std::vector<TimedTransform> transforms{
+        {
+            FrameTimestamp{94.0, ClockDomain::VideoTimeline},
+            transform94
+        },
+        {
+            FrameTimestamp{108.0, ClockDomain::VideoTimeline},
+            transform108
+        }
+    };
+
+    const TimedTransform* matched =
+        findClosestTransform(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            transforms,
+            10.0);
+
+    ASSERT_NE(matched, nullptr);
+    ASSERT_EQ(matched, &transforms[0]);
+
+    const CameraPoint cameraPoint{ 0.2, 0.1, 2.0 };
+
+    const RobotPoint robotPoint =
+        CoordinateTransform::cameraToRobot(
+            cameraPoint,
+            matched->cameraToRobot);
+
+    EXPECT_NEAR(robotPoint.X, 0.9, 1e-12);
+    EXPECT_NEAR(robotPoint.Y, 0.1, 1e-12);
+    EXPECT_NEAR(robotPoint.Z, 2.0, 1e-12);
+}
+
+TEST(RobotVisionTest, UsesFrameTransformWithoutChangingFixedTransform)
+{
+    const CameraConfig camera{
+        2.0, 2.0, 2.0, 0.0, 0.0
+    };
+
+    const std::vector<Target> targets{
+        {1, 0.90, 0.2, 0.1, false}
+    };
+
+    RobotVision vision(camera, kIdentityTransform);
+
+    TransformMatrix firstTransform = kIdentityTransform;
+    firstTransform[0][3] = 0.7;
+
+    TransformMatrix secondTransform = kIdentityTransform;
+    secondTransform[0][3] = 1.0;
+
+    const auto first =
+        vision.runWithTransform(targets, firstTransform);
+
+    ASSERT_TRUE(first.has_value());
+    EXPECT_NEAR(first->robotPoint.X, 0.9, 1e-12);
+    EXPECT_NEAR(first->robotPoint.Y, 0.1, 1e-12);
+    EXPECT_NEAR(first->robotPoint.Z, 2.0, 1e-12);
+
+    const auto second =
+        vision.runWithTransform(targets, secondTransform);
+
+    ASSERT_TRUE(second.has_value());
+    EXPECT_NEAR(second->robotPoint.X, 1.2, 1e-12);
+    EXPECT_EQ(vision.getStatus(), VisionStatus::OK);
+
+    const auto fixed = vision.run(targets);
+
+    ASSERT_TRUE(fixed.has_value());
+    EXPECT_NEAR(fixed->robotPoint.X, 0.2, 1e-12);
+}
+
+TEST(RobotVisionTest, RecoversAfterInvalidFrameTransform)
+{
+    const std::vector<Target> targets{
+        {1, 0.90, 640.0, 360.0, false}
+    };
+
+    RobotVision vision(kDefaultCamera, kIdentityTransform);
+
+    const auto rejected =
+        vision.runWithTransform(targets, kInvalidTransform);
+
+    EXPECT_FALSE(rejected.has_value());
+    EXPECT_EQ(
+        vision.getStatus(),
+        VisionStatus::InvalidFrameTransform);
+
+    const auto recovered =
+        vision.runWithTransform(targets, kIdentityTransform);
+
+    ASSERT_TRUE(recovered.has_value());
+    EXPECT_EQ(vision.getStatus(), VisionStatus::OK);
+    EXPECT_NEAR(recovered->robotPoint.X, 0.0, 1e-12);
+    EXPECT_NEAR(recovered->robotPoint.Y, 0.0, 1e-12);
+    EXPECT_NEAR(recovered->robotPoint.Z, 2.0, 1e-12);
+}
