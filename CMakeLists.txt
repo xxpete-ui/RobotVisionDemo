@@ -241,6 +241,30 @@ target_link_libraries(
     GTest::gtest_main
 )
 
+find_path(
+    ROBOTVISION_EIGEN_INCLUDE_DIR
+    NAMES Eigen/Core
+    HINTS "C:/Libraries/eigen-3.4.0"
+    PATH_SUFFIXES eigen3
+)
+
+if (ROBOTVISION_EIGEN_INCLUDE_DIR)
+    target_include_directories(
+        RobotVisionTransformGoogleTest
+        SYSTEM PRIVATE
+        "${ROBOTVISION_EIGEN_INCLUDE_DIR}"
+    )
+
+    target_compile_definitions(
+        RobotVisionTransformGoogleTest
+        PRIVATE ROBOTVISION_HAS_EIGEN=1
+    )
+
+    message(STATUS "Eigen headers: ${ROBOTVISION_EIGEN_INCLUDE_DIR}")
+else()
+    message(STATUS "Eigen not found: Eigen comparison tests disabled")
+endif()
+
 gtest_discover_tests(
     RobotVisionTransformGoogleTest
     WORKING_DIRECTORY

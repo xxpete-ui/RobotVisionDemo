@@ -8,6 +8,12 @@
 #include <optional>
 #include <vector>
 
+#ifdef ROBOTVISION_HAS_EIGEN
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#endif
+
+
 namespace
 {
     constexpr CameraConfig kDefaultCamera{
@@ -671,3 +677,208 @@ TEST(DepthSamplerTest, KeepsOnlyTargetsWithValidDepth)
     // 原始检测结果没有被修改。
     EXPECT_FALSE(detected[0].depthMeters.has_value());
 }
+
+#ifdef ROBOTVISION_HAS_EIGEN
+
+TEST(EigenSetupTest, IdentityKeepsPointUnchanged)
+{
+    const Eigen::Vector3d point(0.2, 0.1, 2.0);
+
+    const Eigen::Isometry3d transform =
+        Eigen::Isometry3d::Identity();
+
+    const Eigen::Vector3d result = transform * point;
+
+    EXPECT_NEAR(result.x(), 0.2, 1e-9);
+    EXPECT_NEAR(result.y(), 0.1, 1e-9);
+    EXPECT_NEAR(result.z(), 2.0, 1e-9);
+}
+
+#endif
+
+#ifdef ROBOTVISION_HAS_EIGEN
+
+namespace
+{
+    std::optional<Eigen::Isometry3d> toEigenTransform(
+        const TransformMatrix& transform)
+    {
+        // Isometry3d 不会自动检查输入，先用项目已有函数验证。
+        if (!TransformUtils::isValidTransformMatrix(transform))
+        {
+            return std::nullopt;
+        }
+
+        Eigen::Isometry3d result =
+            Eigen::Isometry3d::Identity();
+
+        // 左上角 3×3：旋转部分
+        for (int row = 0; row < 3; ++row)
+        {
+            for (int col = 0; col < 3; ++col)
+            {
+                result.linear()(row, col) =
+                    transform[row][col];
+            }
+        }
+
+        // 最后一列的前三项：平移部分。
+        result.translation() <<
+            transform[0][3],
+            transform[1][3],
+            transform[2][3];
+
+        return result;
+    }
+}
+
+TEST(EigenTransformTest, MatchesExistingCameraToRobot)
+{
+    const CameraPoint cameraPoint{ 0.2, 0.1, 2.0 };
+
+    const TransformMatrix transform =
+        TransformUtils::buildTransform(
+            TransformUtils::rotationZ(90.0),
+            0.7, 0.2, 0.5);
+
+    const auto eigenTransform = toEigenTransform(transform);
+    ASSERT_TRUE(eigenTransform.has_value());
+
+    // 项目原有计算。
+    const RobotPoint oldResult =
+        CoordinateTransform::cameraToRobot(
+            cameraPoint,
+            transform);
+
+    // Eigen 计算。
+    const Eigen::Vector3d eigenPoint(
+        cameraPoint.X,
+        cameraPoint.Y,
+        cameraPoint.Z);
+
+    const Eigen::Vector3d eigenResult =
+        (*eigenTransform) * eigenPoint;
+
+    // 先验证旧函数符合手算结果。
+    EXPECT_NEAR(oldResult.X, 0.6, 1e-9);
+    EXPECT_NEAR(oldResult.Y, 0.4, 1e-9);
+    EXPECT_NEAR(oldResult.Z, 2.5, 1e-9);
+
+    // 再验证 Eigen 与旧函数一致。
+    EXPECT_NEAR(eigenResult.x(), oldResult.X, 1e-9);
+    EXPECT_NEAR(eigenResult.y(), oldResult.Y, 1e-9);
+    EXPECT_NEAR(eigenResult.z(), oldResult.Z, 1e-9);
+}
+
+TEST(EigenTransformTest, InverseRestoresCameraPoint)
+{
+    const CameraPoint cameraPoint{ 0.2, 0.1, 2.0 };
+
+    const TransformMatrix transform =
+        TransformUtils::buildTransform(
+            TransformUtils::rotationZ(90.0),
+            0.7, 0.2, 0.5);
+
+    const auto eigenTransform = toEigenTransform(transform);
+    ASSERT_TRUE(eigenTransform.has_value());
+
+    const auto oldInverse =
+        TransformUtils::inverseTransform(transform);
+    ASSERT_TRUE(oldInverse.has_value());
+
+    // 同一个机器人坐标，分别交给两种逆变换。
+    const RobotPoint robotPoint =
+        CoordinateTransform::cameraToRobot(
+            cameraPoint,
+            transform);
+
+    const CameraPoint oldRestored =
+        CoordinateTransform::robotToCamera(
+            robotPoint,
+            *oldInverse);
+
+    const Eigen::Vector3d eigenRobotPoint(
+        robotPoint.X,
+        robotPoint.Y,
+        robotPoint.Z);
+
+    const Eigen::Vector3d eigenRestored =
+        eigenTransform->inverse() * eigenRobotPoint;
+
+    // Eigen 应恢复原始相机点。
+    EXPECT_NEAR(eigenRestored.x(), cameraPoint.X, 1e-9);
+    EXPECT_NEAR(eigenRestored.y(), cameraPoint.Y, 1e-9);
+    EXPECT_NEAR(eigenRestored.z(), cameraPoint.Z, 1e-9);
+
+    // 同时与项目原有逆变换一致。
+    EXPECT_NEAR(eigenRestored.x(), oldRestored.X, 1e-9);
+    EXPECT_NEAR(eigenRestored.y(), oldRestored.Y, 1e-9);
+    EXPECT_NEAR(eigenRestored.z(), oldRestored.Z, 1e-9);
+}
+
+TEST(EigenTransformTest, ComposedChainMatchesSequentialTransforms)
+{
+    const TransformMatrix cameraToTool =
+        TransformUtils::buildTransform(
+            TransformUtils::rotationZ(0.0),
+            0.1, 0.0, 0.0);
+
+    const TransformMatrix toolToBase =
+        TransformUtils::buildTransform(
+            TransformUtils::rotationZ(90.0),
+            1.0, 0.0, 0.0);
+
+    const auto eigenCameraToTool =
+        toEigenTransform(cameraToTool);
+
+    const auto eigenToolToBase =
+        toEigenTransform(toolToBase);
+
+    ASSERT_TRUE(eigenCameraToTool.has_value());
+    ASSERT_TRUE(eigenToolToBase.has_value());
+
+    const Eigen::Vector3d cameraPoint(0.0, 1.0, 0.0);
+
+    // 分两步：Camera → Tool → Base。
+    const Eigen::Vector3d toolPoint =
+        (*eigenCameraToTool) * cameraPoint;
+
+    const Eigen::Vector3d sequentialResult =
+        (*eigenToolToBase) * toolPoint;
+
+    // 先组合变换，再计算点。
+    const Eigen::Isometry3d cameraToBase =
+        (*eigenToolToBase) * (*eigenCameraToTool);
+
+    const Eigen::Vector3d composedResult =
+        cameraToBase * cameraPoint;
+
+    EXPECT_NEAR(toolPoint.x(), 0.1, 1e-9);
+    EXPECT_NEAR(toolPoint.y(), 1.0, 1e-9);
+    EXPECT_NEAR(toolPoint.z(), 0.0, 1e-9);
+
+    EXPECT_NEAR(sequentialResult.x(), 0.0, 1e-9);
+    EXPECT_NEAR(sequentialResult.y(), 0.1, 1e-9);
+    EXPECT_NEAR(sequentialResult.z(), 0.0, 1e-9);
+
+    EXPECT_NEAR(composedResult.x(), sequentialResult.x(), 1e-9);
+    EXPECT_NEAR(composedResult.y(), sequentialResult.y(), 1e-9);
+    EXPECT_NEAR(composedResult.z(), sequentialResult.z(), 1e-9);
+}
+
+TEST(EigenTransformTest, RejectsScalingInsteadOfRotation)
+{
+    TransformMatrix invalidTransform =
+        TransformUtils::buildTransform(
+            TransformUtils::rotationZ(0.0),
+            0.0, 0.0, 0.0);
+
+    // 把单位矩阵的 X 方向改成缩放两倍。
+    // 此时左上角 3×3 不再是合法旋转矩阵。
+    invalidTransform[0][0] = 2.0;
+
+    const auto result = toEigenTransform(invalidTransform);
+
+    EXPECT_FALSE(result.has_value());
+}
+#endif
