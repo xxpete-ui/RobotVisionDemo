@@ -525,3 +525,120 @@ TEST(VisionPipelineTest, RejectsTransformOutsideTimeWindow)
     EXPECT_EQ(result.status, DepthFusionStatus::NoMatchedTransform);
     EXPECT_FALSE(result.target.has_value());
 }
+
+TEST(VisionPipelineTest, RejectsTransformFromDifferentClockDomain)
+{
+    const std::vector<TimedDepthFrame> depths{
+        {
+            FrameTimestamp{100.0, ClockDomain::VideoTimeline},
+            {2, 2, {2000, 2000, 2000, 2000}}
+        }
+    };
+
+    const std::vector<TimedTransform> transforms{
+        {
+            FrameTimestamp{96.0, ClockDomain::LocalSteady},
+            kIdentityTransform
+        }
+    };
+
+    MockDetector detector({
+        {1, 0.90, 1.0, 0.0, false}
+        });
+
+    const CameraConfig camera{
+        2.0, 2.0, 2.0, 0.0, 0.0
+    };
+
+    RobotVision vision(camera, kIdentityTransform);
+    VisionPipeline pipeline(detector, vision);
+
+    const DepthFusionResult result =
+        pipeline.runWithSyncedDepthAndTransform(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0,
+            transforms,
+            10.0,
+            2, 2, true);
+
+    EXPECT_EQ(
+        result.status,
+        DepthFusionStatus::NoMatchedTransform);
+    EXPECT_FALSE(result.target.has_value());
+}
+
+TEST(VisionPipelineTest, RecoversAfterInvalidSynchronizedTransform)
+{
+    const std::vector<TimedDepthFrame> depths{
+        {
+            FrameTimestamp{100.0, ClockDomain::VideoTimeline},
+            {2, 2, {2000, 2000, 2000, 2000}}
+        }
+    };
+
+    TransformMatrix invalidTransform = kIdentityTransform;
+    invalidTransform[0][0] = 2.0;
+
+    const std::vector<TimedTransform> invalidTransforms{
+        {
+            FrameTimestamp{96.0, ClockDomain::VideoTimeline},
+            invalidTransform
+        }
+    };
+
+    MockDetector detector({
+        {1, 0.90, 1.0, 0.0, false}
+        });
+
+    const CameraConfig camera{
+        2.0, 2.0, 2.0, 0.0, 0.0
+    };
+
+    RobotVision vision(camera, kIdentityTransform);
+    VisionPipeline pipeline(detector, vision);
+
+    const DepthFusionResult rejected =
+        pipeline.runWithSyncedDepthAndTransform(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0,
+            invalidTransforms,
+            10.0,
+            2, 2, true);
+
+    EXPECT_EQ(
+        rejected.status,
+        DepthFusionStatus::VisionProcessingFailed);
+    EXPECT_FALSE(rejected.target.has_value());
+    EXPECT_EQ(
+        vision.getStatus(),
+        VisionStatus::InvalidFrameTransform);
+
+    TransformMatrix validTransform = kIdentityTransform;
+    validTransform[0][3] = 0.7;
+
+    const std::vector<TimedTransform> validTransforms{
+        {
+            FrameTimestamp{96.0, ClockDomain::VideoTimeline},
+            validTransform
+        }
+    };
+
+    const DepthFusionResult recovered =
+        pipeline.runWithSyncedDepthAndTransform(
+            FrameTimestamp{ 100.0, ClockDomain::VideoTimeline },
+            depths,
+            10.0,
+            validTransforms,
+            10.0,
+            2, 2, true);
+
+    ASSERT_EQ(recovered.status, DepthFusionStatus::OK);
+    ASSERT_TRUE(recovered.target.has_value());
+    EXPECT_EQ(vision.getStatus(), VisionStatus::OK);
+
+    EXPECT_NEAR(recovered.target->robotPoint.X, 1.7, 1e-12);
+    EXPECT_NEAR(recovered.target->robotPoint.Y, 0.0, 1e-12);
+    EXPECT_NEAR(recovered.target->robotPoint.Z, 2.0, 1e-12);
+}
